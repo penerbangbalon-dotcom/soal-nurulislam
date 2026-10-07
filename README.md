@@ -1,301 +1,192 @@
-# Generator Soal UTS/UAS — PKBM Nurul Islam
+# Absensi Digital — PKBM Nurul Islam
 
-Aplikasi web untuk membuat, mengelola, dan mencetak/menguji soal UTS & UAS.
-Dibangun dengan stack yang sama seperti aplikasi absensi: **Netlify (hosting +
-Functions)** + **Supabase (database)**.
+Aplikasi absensi siswa Paket B & Paket C: absen **Datang**/**Pulang** dengan validasi
+GPS + radius sekolah + kode/QR yang berganti tiap 15 menit, waktu server (WIB), dan
+kontrol admin penuh (data siswa, sesi, jadwal, rekap, audit log).
 
-## 1. Siapkan Database (Supabase)
+## Arsitektur
 
-1. Buka project Supabase yang sama dengan aplikasi absensi (supaya bisa
-   pakai tabel `siswa` yang sudah ada).
-2. Buka **SQL Editor** → jalankan isi file `supabase-schema.sql`.
-3. Aplikasi ini memakai tabel `students` milik aplikasi absensi (kolom `nisn`, `nama`, `status`)
-   (dari aplikasi absensi). Kalau nama kolomnya beda, sesuaikan di file
-   `netlify/functions/mulai-ujian.js`.
-4. Aktifkan **Supabase Auth** (Email/Password) di menu Authentication. Setelah
-   deploy, akun guru/admin berikutnya bisa dibuat langsung dari menu
-   **"Manajemen User"** di dalam aplikasi (tidak perlu lagi buka dashboard
-   Supabase satu-satu) — akun pertama tetap harus dibuat manual lewat
-   Authentication → Users → Add user, karena aplikasi butuh minimal satu akun
-   untuk login pertama kali.
+Aplikasi ini di-deploy ke **Netlify** (hosting statis + serverless functions) dan
+**Supabase** (database Postgres + service role key). Netlify **tidak** menjalankan
+server yang terus hidup — kode di `netlify/functions/*` berjalan sebagai *serverless
+function* setiap kali frontend memanggil `/api/...`. Semua validasi penting (lokasi,
+waktu, token, status siswa) dilakukan **di function ini (server), bukan di browser**.
 
-## 2. Ambil Kredensial Supabase
-
-Di Settings → API, catat:
-- **Project URL**
-- **anon public key**
-- **service_role key** (JANGAN pernah taruh ini di file HTML/frontend!)
-
-## 3. Isi Konfigurasi Frontend
-
-Buka `index.html`, cari baris:
-```js
-const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY';
 ```
-Ganti dengan Project URL dan anon key kamu. Lakukan hal yang sama di
-`ujian.html` untuk `SUPABASE_URL`.
-
-## 4. Deploy ke Vercel (versi yang disarankan)
-
-Folder `api/` pada versi ini adalah adapter Vercel untuk seluruh backend lama:
-`generate-soal`, `kelola-user`, `mulai-ujian`, `submit-ujian`, `heartbeat`, dan `sudahi-ujian`.
-Jadi URL frontend seperti `/api/generate-soal` tidak lagi bergantung pada redirect Netlify.
-
-
-**Deploy dari GitHub (disarankan):**
-1. Login ke Vercel
-2. Klik "Add new site" → "Deploy manually"
-3. Drag seluruh folder `generator-soal` ke area upload
-   (pastikan folder `netlify/functions` ikut ter-upload)
-
-**Set Environment Variables** (Site settings → Environment variables):
-| Key | Value |
-|---|---|
-| `GEMINI_API_KEY` | API key Gemini kamu (gratis, ambil di [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) |
-| `SUPABASE_URL` | Project URL Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key Supabase |
-| `GROQ_API_KEY` *(opsional, disarankan)* | AI cadangan #1 — gratis & sangat cepat, ambil di [console.groq.com/keys](https://console.groq.com/keys) |
-| `CEREBRAS_API_KEY` *(opsional)* | AI cadangan #2 — gratis, ambil di [cloud.cerebras.ai](https://cloud.cerebras.ai) |
-| `MISTRAL_API_KEY` *(opsional)* | AI cadangan #3 — tier gratis "Experiment", ambil di [console.mistral.ai](https://console.mistral.ai) |
-| `OPENROUTER_API_KEY` *(opsional)* | AI cadangan #4 — model gratis (`:free`), ambil di [openrouter.ai/keys](https://openrouter.ai/keys) |
-
-**AI Generator dengan cadangan otomatis.** Isi `GEMINI_API_KEY` *dan/atau* key provider lain di atas
-(cukup salah satu juga bisa). Saat generate soal, sistem mencoba berurutan: Gemini (model utama → `gemini-2.5-flash`
-→ `gemini-2.5-flash-lite`) → Groq → Cerebras → Mistral → OpenRouter. Provider yang key-nya kosong dilewati. Kalau satu
-gagal (server sibuk/overload 503, limit 429, model tidak tersedia), langsung pindah ke berikutnya — guru tidak perlu
-klik ulang. Soal dibuat **bertahap ±10 soal per bagian**, soal yang sudah jadi langsung tampil, dan bagian yang gagal
-bisa diulang lewat tombol *Ulangi yang gagal*. Variabel opsional: `AI_PROVIDER_ORDER` (mis. `groq,gemini`),
-`GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`, `GROQ_MODEL`, `CEREBRAS_MODEL`, `MISTRAL_MODEL`, `OPENROUTER_MODEL`,
-`AI_BUDGET_MS`. Nama model & batas gratis tiap provider bisa berubah sewaktu-waktu — kalau ada model yang 404, cukup
-ganti lewat variabel `*_MODEL` tanpa mengubah kode.
-> Catatan: provider gratis biasanya boleh memakai prompt/jawaban untuk pelatihan model mereka. Prompt yang dikirim
-> hanya berisi mapel, topik, dan jenis soal (tanpa data siswa), jadi aman untuk pembuatan soal.
-
-> Cara ambil `GEMINI_API_KEY` gratis: buka [Google AI Studio](https://aistudio.google.com/apikey),
-> login pakai akun Google, klik **"Create API key"**, lalu copy key-nya. Free tier
-> cukup untuk pemakaian normal generate soal (ada limit harian, kalau kena limit
-> tinggal coba lagi beberapa saat kemudian).
-
-Setelah environment variable diisi, lakukan **Redeploy** supaya
-Netlify Functions membaca variable barunya.
-
-> Catatan: karena upload manual (drag-and-drop) tidak otomatis install
-> dependency npm, cek dulu apakah Netlify berhasil build function
-> `mulai-ujian` dan `submit-ujian` (yang pakai `@supabase/supabase-js`).
-> Kalau gagal karena dependency, cara paling gampang adalah connect
-> repo ini ke GitHub lalu deploy dari Git (Netlify otomatis `npm install`).
-
-## 5. Cara Pakai
-
-**Guru** (`index.html` / domain utama):
-1. Login pakai akun yang dibuat di Supabase Auth
-2. Tambah Mata Pelajaran dulu (tab "Mata Pelajaran") — isi Nama, Jenjang (Program), dan **Kelas**.
-   Kalau satu mapel dipakai di beberapa kelas (mis. Matematika di Kelas VII, VIII, IX), buat
-   entri terpisah untuk tiap kelas supaya Bank Soal-nya tidak tercampur.
-3. Isi Bank Soal — manual atau pakai tombol "Generate dengan AI" (bisa centang
-   lebih dari satu jenis soal sekaligus — Pilihan Ganda, Isian Singkat, Essay —
-   supaya AI membuat satu lembar soal campuran dalam sekali generate, maksimal
-   100 soal per generate)
-4. Racik Paket Ujian — pilih soal dari bank, simpan (status: draft)
-5. Di tab "Daftar & Cetak":
-   - Klik **Cetak** untuk soal siap print (PDF via print browser) + kunci jawaban
-   - Klik **Aktifkan Online** untuk membuka akses ujian online ke siswa —
-     ini akan menampilkan **kode akses** yang dibagikan ke siswa
-6. Saat ujian berlangsung, buka tab **Monitoring Ujian** untuk memantau siswa secara langsung dan mengambil tindakan
-   (lihat bagian *Monitoring Ujian* di bawah)
-7. Setelah siswa selesai ujian, buka tab **Hasil Ujian Online** untuk
-   melihat skor otomatis (PG & isian singkat) dan menilai soal essay manual
-
-**Siswa** (`ujian.html`):
-1. Buka halaman `ujian.html` (misal: `namasite.netlify.app/ujian.html`)
-2. Masukkan kode akses + NISN
-3. Kerjakan soal sebelum waktu habis (auto-submit saat waktu habis)
-
-## Struktur File
-```
-generator-soal/
-├── index.html                     # Aplikasi guru
-├── ujian.html                     # Ujian online siswa
-├── netlify.toml                   # Konfigurasi Netlify
-├── logo.png                       # Logo untuk kop soal cetak
-├── migrasi-v7.sql                 # Jalankan sekali: Ulangan Harian, pengaturan nilai/KKM, nilai tambahan
-├── migrasi-lengkap.sql                 # Jalankan sekali di Supabase (izin tombol Reset, kolom Kelas, dll)
-├── supabase-schema.sql            # Skema database
-├── netlify/lib/
-│   └── ujian-core.js              # Kode bersama: penilaian otomatis, akses Supabase, cek login guru
-└── netlify/functions/
-    ├── generate-soal.js           # Generate soal dgn cadangan otomatis: Gemini -> Groq -> Cerebras -> Mistral -> OpenRouter
-    ├── mulai-ujian.js             # Validasi kode akses + mulai sesi siswa
-    ├── submit-ujian.js            # Simpan & auto-nilai jawaban siswa
-    ├── heartbeat.js               # Detak dari halaman siswa (online/progres/cadangan jawaban) + terima perintah guru
-    └── sudahi-ujian.js            # Guru mengakhiri paksa ujian siswa (menilai jawaban tersimpan)
+public/                → frontend statis (HTML/CSS/JS) — di-deploy oleh Netlify
+netlify/functions/     → API backend (Node.js), jalan sebagai Netlify Functions
+supabase/schema.sql    → struktur database
+supabase/seed_students.sql → data 556 siswa dari file Dapodik Anda (dibuat otomatis)
+scripts/               → alat bantu konversi data & pembuatan akun admin pertama
 ```
 
-## Monitoring Ujian (real-time)
+Kunci keamanan: `SUPABASE_SERVICE_ROLE_KEY` (bisa baca/tulis semua tabel, bypass RLS)
+**hanya** disimpan di environment variable Netlify — tidak pernah dikirim ke browser.
+Browser hanya bicara dengan Netlify Functions lewat `/api/*`, dan setiap function
+mengambil identitas siswa/admin dari **token JWT hasil login**, bukan dari data yang
+dikirim client. Ini yang membuat siswa tidak bisa memalsukan NISN, waktu, atau lokasi
+absensi mereka sendiri lewat request API manual.
 
-Menu **Monitoring Ujian** menampilkan siswa satu paket ujian: status (**Online / Terputus / Dikunci / Selesai / Belum
-masuk**), progres jawaban, sisa waktu, jumlah pindah tab, dan waktu terakhir aktif — diperbarui otomatis tiap 8 detik.
-Halaman siswa mengirim "detak" ke server tiap ±20 detik (ubah `HEARTBEAT_MS` di `ujian.html` bila perlu); siswa tanpa
-detak >45 detik ditandai *Terputus*. Tindakan guru (per siswa atau massal lewat kotak centang):
+## Langkah Deploy
 
-| Aksi | Efek |
-|---|---|
-| **Pesan** | Peringatan kuning muncul di layar siswa (mis. "Harap tetap fokus"), ada pilihan pesan cepat |
-| **+ Waktu** | Menambah menit ujian; timer siswa ikut bertambah, batas waktu server ikut naik |
-| **Kunci / Buka** | Layar siswa tertutup sementara sampai dibuka lagi (waktu tetap berjalan — tambahkan waktu bila perlu) |
-| **Sudahi** | Ujian diakhiri paksa; jawaban yang sudah tersimpan di server langsung dinilai. Berfungsi walau HP siswa mati/koneksi putus |
-| **Reset** | Sesi dihapus (jawaban & nilai hilang); siswa diminta masuk ulang dari awal |
+### 1. Buat project Supabase (gratis)
+1. Daftar/masuk di https://supabase.com → **New project**.
+2. Setelah project jadi, buka **SQL Editor** → jalankan isi `supabase/schema.sql`.
+3. Jalankan juga isi `supabase/migration_02_rekap_dan_absen_manual.sql`, lalu
+   `supabase/migration_03_hari_libur.sql`, lalu `supabase/migration_04_identitas_ttd.sql`
+   (urut, satu kali) di SQL Editor yang sama. Migrasi 02 menambahkan fungsi
+   database `rekap_kehadiran()` yang dipakai fitur **Persentase Kehadiran**,
+   **Riwayat Siswa**, dan **Rekap Semester (Rapor)**. Migrasi 03 menambahkan
+   **kalender hari libur** (sudah terisi otomatis dengan libur nasional & cuti
+   bersama 2026) supaya hari libur tidak ikut dihitung sebagai hari efektif
+   sekolah — tanpa migrasi 03, setiap libur nasional akan membuat SEMUA siswa
+   tercatat Alpa secara keliru. Migrasi 04 menambahkan kolom identitas
+   yayasan/PKBM (NPSN, SK Kemenhukum, dll), tanda tangan Kepala PKBM, dan
+   tabel `wali_kelas` (nama + tanda tangan wali kelas per kelas) yang dipakai
+   halaman **Rekap Semester (Rapor)** — tanpa migrasi 04, menu **Kelola Tanda
+   Tangan** & kop surat lampiran rapor tidak akan berfungsi.
+   **Migrasi 05** (`supabase/migration_05_jadwal_pelajaran.sql`, jalankan setelah 04)
+   menambahkan menu **Jadwal Pelajaran** (jadwal mapel per kelas, jam belajar, daftar
+   mapel dropdown) dan **jam absen khusus Jumat** untuk fitur **Rekap Word Harian**
+   di halaman Rekap Absensi. Tanpa migrasi 05, tombol Rekap Word tetap jalan tetapi
+   kolom mapel kosong, dan halaman Jadwal Pelajaran menampilkan pesan error.
+   **Migrasi 06** (`supabase/migration_06_muatan_mapel_dan_grup_paket_c.sql`, jalankan setelah 05)
+   menambahkan tabel muatan mapel untuk **Generate Jadwal Otomatis** dan memindahkan jadwal
+   Paket C yang sudah tersimpan dari nama lama (`10 IPA`, `10 IPS`, dst.) ke grup baru
+   `10`, `11`, `12`. Tanpa migrasi 06, generator tetap jalan dengan muatan bawaan, tetapi muatan
+   hasil edit tidak bisa disimpan dan jadwal Paket C lama tidak ikut pindah grup.
+4. Buat file seed dari data siswa Anda (lihat langkah 2), lalu jalankan isi
+   `supabase/seed_students.sql` di SQL Editor yang sama.
+5. Buka **Project Settings → API**. Catat:
+   - `Project URL` → jadi `SUPABASE_URL`
+   - `service_role` key (bagian **secret**, bukan `anon`) → jadi `SUPABASE_SERVICE_ROLE_KEY`
 
-Jawaban siswa dicadangkan ke server ±5 detik setelah berhenti mengetik, sehingga **Sudahi** hanya kehilangan
-ketikan beberapa detik terakhir. Jawaban juga otomatis dipulihkan bila siswa pindah HP/browser.
-> **Untuk instalasi lama**: jalankan ulang `migrasi-lengkap.sql` di Supabase SQL Editor (menambah kolom monitoring di
-> `sesi_ujian`), lalu deploy ulang **seluruh folder** — termasuk `netlify/lib/` dan `netlify/functions/`.
-> Catatan biaya: tiap siswa ±3 panggilan function per menit selama ujian (mis. 40 siswa × 90 menit ≈ 11 ribu
-> panggilan). Kalau kuota Netlify terbatas, naikkan `HEARTBEAT_MS` ke 30000.
+### 2. Siapkan data siswa & akun admin pertama (di komputer Anda)
+```bash
+npm install
+# (data/students_import.csv sudah disertakan, hasil konversi file Dapodik Anda)
+node scripts/generate_seed_sql.js
+# -> menghasilkan supabase/seed_students.sql, jalankan isinya di Supabase SQL Editor
 
-## Versi 7 — Ulangan Harian, Rekap/Leger/Transkrip Nilai, KKM
+node scripts/create_super_admin.js "admin@sekolah.anda" "Nama Admin" "PasswordKuatAnda123"
+# -> tempel SQL yang dicetak ke Supabase SQL Editor untuk membuat login admin pertama
+```
 
-**Untuk instalasi lama**: jalankan `migrasi-v7.sql` SEKALI di Supabase SQL Editor (aman dijalankan ulang; hanya menambah tabel
-baru dan melonggarkan aturan jenis ujian). Pastikan `migrasi-arsip-nilai.sql` juga sudah pernah dijalankan.
+> ⚠️ **5 siswa tanpa NISN** pada file sumber (ACENG USIN, M. GIPARANA AS SIDIK,
+> MUHAMMAD HABIBUR ROHMAN, RUSMANA, SITI JENAB) ikut ter-import tapi ditandai
+> `butuh_konfirmasi_admin = true` dan **belum bisa login** sampai admin mengisi
+> NISN mereka lewat menu **Data Siswa** di dashboard.
 
-Menu baru (di bawah Laporan Siswa):
-- **Rekap Nilai Siswa** — cari nama/NISN atau dropdown; nilai UH, UTS, UAS, Tugas, Praktik, Nilai Akhir, KKM, status Tuntas; unduh Excel.
-- **Leger Nilai (Excel)** — per jenjang/kelas/tahun ajaran/semester; kolom per mapel + Jumlah, Rata-rata, Peringkat, Sikap, S/I/A,
-  jumlah nilai di bawah KKM. Excel berisi sheet Leger, Di Bawah KKM (calon remedial), dan Keterangan.
-- **Transkrip Nilai** — akumulasi semua semester & tahun ajaran per siswa (cetak / Excel), termasuk sikap & kehadiran.
-- **Input Nilai Tambahan** — nilai Tugas & Praktik per mapel, serta Sikap (A-D) & kehadiran (sakit/izin/alpa) per siswa per semester.
-- **Pengaturan Nilai** — bobot Nilai Akhir (UH/UTS/UAS/Tugas/Praktik), KKM standar (bawaan 70; umumnya 70-75) dan KKM per mapel.
-  Disimpan di database sehingga sama untuk semua guru.
+### 3. Deploy ke Netlify
+**Opsi termudah — drag & drop:**
+1. Jalankan `npm install` sekali di folder proyek (agar `node_modules` untuk functions siap — Netlify akan build ulang saat deploy via CLI/Git, tapi untuk drag-drop pastikan dependency ter-bundle oleh Netlify).
+2. Buka https://app.netlify.com → **Add new site → Deploy manually**, seret folder proyek ini.
+3. Buka **Site settings → Environment variables**, isi 3 variabel dari `.env.example`:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `JWT_SECRET` (string acak panjang, mis. hasil `openssl rand -hex 32`)
+4. **Trigger deploy** ulang (Deploys → Trigger deploy) supaya environment variable terbaca oleh Functions.
 
-Aturan hitung: UH = rata-rata semua ulangan harian di mapel itu; UTS/UAS = nilai terbaru; Tugas/Praktik = nilai yang diinput.
-Bobot bawaan 30/30/40 (Tugas & Praktik 0%, jadi Nilai Akhir lama tidak berubah). Hanya nilai **final** yang dihitung.
+**Opsi disarankan — via Netlify CLI (lebih stabil untuk Functions):**
+```bash
+npm install -g netlify-cli
+netlify login
+netlify init          # hubungkan ke site baru/lama
+netlify env:set SUPABASE_URL "https://xxxx.supabase.co"
+netlify env:set SUPABASE_SERVICE_ROLE_KEY "xxxxxxxx"
+netlify env:set JWT_SECRET "$(openssl rand -hex 32)"
+netlify deploy --prod
+```
 
-Ulangan Harian: pilihan baru di *Buat Paket Ujian → Jenis Ujian*. Ulangan Harian **tidak** ikut menu Laporan Siswa/Rapor/peringkat lama
-(perilaku menu lama tetap seperti sebelumnya); ia tampil di Rekap Nilai Siswa, Leger, dan Transkrip.
+### 4. Login pertama & pengaturan sekolah
+1. Buka `https://nama-site-anda.netlify.app/admin/login.html`, login dengan akun Super
+   Admin yang dibuat di langkah 2.
+2. Masuk ke **Pengaturan Sekolah** → isi/klik "Gunakan Lokasi Saat Ini" saat Anda berada
+   di lokasi sekolah (atau isi manual latitude/longitude), atur radius (50–100 m),
+   akurasi GPS maksimum, dan hari aktif.
+3. Cek jadwal Paket B (07.00–12.00) & Paket C (12.30–17.00) di bagian bawah halaman
+   yang sama, sesuaikan bila perlu.
+4. Buka **Sesi & Token Absensi** setiap kali jam absen tiba → klik **Mulai/Perpanjang**
+   untuk membuka sesi; kode/QR akan tampil dan otomatis berganti tiap 15 menit selama
+   sesi berjalan (dibantu *scheduled function* di server, tidak butuh tab tetap terbuka).
+   Gunakan tombol **⤢ Layar Penuh** untuk ditampilkan di proyektor/TV sekolah.
+5. Siswa membuka `https://nama-site-anda.netlify.app/siswa/login.html`, login dengan
+   NISN + password awal (tanggal lahir format `DDMMYYYY`), lalu diminta ganti password.
 
-Soal terpakai: saat menyimpan paket, aplikasi memeriksa ulang ke database dan MENOLAK bila ada soal yang sudah dipakai di paket lain
-(berlaku walau centang "Sembunyikan soal yang sudah dipakai" dimatikan). Paket lama yang sudah berisi soal bersama tetap bisa diedit.
+## Yang sudah berfungsi penuh
+- Import 556 data siswa asli (SD / Paket B / Paket C otomatis terpisah dari kolom Rombel).
+- Login siswa (NISN + password, wajib ganti password pertama kali) & login admin (RBAC Super Admin/Admin).
+- Sesi absensi dengan token 6-karakter + QR yang **rotasi tiap 15 menit**, dipicu admin dan diperpanjang otomatis oleh scheduled function selama sesi dibiarkan berjalan.
+- Absen Datang/Pulang: validasi token, radius (Haversine), akurasi GPS, jadwal per program, waktu **server** (Asia/Jakarta), anti-duplikat, deteksi mock-location, audit log & security event.
+- Dashboard admin dengan statistik per jenjang/program (dipoll tiap 8 detik → terasa realtime tanpa refresh manual) + tabel monitoring live + ringkasan persentase kehadiran bulan berjalan & daftar siswa dengan kehadiran terendah.
+- Data Siswa: cari, filter, tambah, edit, nonaktifkan, hapus (dengan konfirmasi), reset password.
+- Rekap Absensi dengan filter lengkap + ekspor **CSV** dan **Excel (.xlsx)**; ekspor **PDF** disediakan lewat tombol cetak (Print to PDF) dari tampilan rekap yang sudah tertata rapi (menu, sidebar, dan tombol otomatis disembunyikan saat mencetak).
+- **Persentase Kehadiran** per siswa (bulanan/semester/rentang bebas), tampil di Dashboard Admin, menu Persentase Kehadiran, dan profil siswa; ekspor CSV/Excel. Perhitungan hari efektif sudah mengecualikan hari libur (lihat **Kalender Hari Libur** di Pengaturan Sekolah).
+- **Rekap Semester (Rapor)**: rekap kehadiran per semester lengkap dengan **deskripsi kehadiran otomatis** (kalimat penilaian yang kata-katanya bisa diedit sendiri lewat Pengaturan Sekolah), tampil sebagai kartu per siswa siap dicetak/disimpan sebagai PDF untuk lampiran rapor, dan ekspor Excel (tabel + kolom deskripsi).
+- **Absen Manual** (khusus Super Admin): input kehadiran (Hadir/Terlambat/Izin/Sakit/Tidak Hadir, lengkap jam datang & pulang bila perlu) untuk siswa yang tidak punya HP / tidak bisa absen mandiri lewat aplikasi — termasuk **mode massal per kelas** (isi satu kelas sekaligus dalam satu kali submit, dengan tombol "Tandai Semua Hadir"). Tercatat di audit log dan ditandai "manual" pada data absensi.
+- **Kalender Hari Libur** (di menu Pengaturan Sekolah): daftar tanggal yang dikecualikan dari perhitungan hari efektif sekolah (persentase kehadiran & rapor) dan otomatis menutup absensi mandiri siswa pada tanggal tersebut. Sudah terisi 25 tanggal libur nasional & cuti bersama 2026 dari SKB 3 Menteri; tambahkan sendiri libur khusus sekolah (libur semester, dll.) kapan saja.
+- Audit log aktivitas & log keamanan (anti-kecurangan) dengan paginasi.
+- **Laporan Absensi Siswa** (menu 📄 Laporan): tiap siswa melihat laporan kehadiran pribadi (bulan/semester/rentang bebas) lengkap deskripsi kehadiran, lalu mengunduh sebagai **PDF** (cetak/simpan PDF, dengan kop sekolah), **Excel**, atau **CSV**. Hanya data milik siswa yang login.
+- **Menu admin terkelompok** (Absensi, Akademik, Pengaturan) agar sidebar ringkas; grup yang berisi halaman aktif terbuka otomatis.
+- **Cetak Jadwal Pelajaran** (menu Akademik → Jadwal Pelajaran): tombol **Excel** (.xlsx, satu sheet per kelas, ada rekap JP per mapel) dan **PDF** (satu halaman per kelas dengan kop sekolah; pilih *Simpan sebagai PDF* di jendela cetak browser). Bisa per kelas atau semua kelas.
+- **Generate Jadwal Otomatis** (tab *Generate Otomatis*): menyusun jadwal semua kelas sekaligus tanpa bentrok — satu kelas tidak punya dua mapel di jam yang sama, mapel yang sama tidak diajarkan di dua kelas pada jam bertumpuk (lintas Paket B & C pada hari Jumat), Muatan Lokal maksimal 2 JP/minggu, blok jam tidak melintasi istirahat. Hasil berupa pratinjau yang baru tersimpan setelah klik *Simpan ke Jadwal*. Muatan JP per mapel tiap kelas dapat diedit dan disimpan.
+  - Catatan: JP per mapel bawaan adalah pembagian proporsional ke jam pelajaran yang tersedia (30 JP/minggu pada jam belajar bawaan), bukan angka resmi per mapel. Sesuaikan dengan kurikulum operasional PKBM.
+  - Ketentuan 1 JP = 40 menit (Paket B) dan 45 menit (Paket C); halaman akan memberi peringatan bila jam belajar yang diatur berbeda.
+  - Sistem belum menyimpan data guru, sehingga "bentrok" dihitung per mapel (satu mapel dianggap satu guru/ruang).
+- **Rekap Word Paket C digabung per tingkat**: kelas 10, 11, 12 (IPA/IPS dan rombel diabaikan). Jadwal Pelajaran Paket C juga memakai grup 10/11/12.
+- Riwayat & statistik kehadiran pribadi siswa — bisa dilihat per bulan, per semester, atau rentang tanggal bebas (siswa hanya bisa melihat datanya sendiri).
 
-## Riwayat Perbaikan
+## Rotasi Token & Paket Gratis Netlify
+Kode/QR absensi berganti tiap 15 menit lewat **Netlify Scheduled Functions**
+(`scheduled-rotate-token`, jadwal `*/15 * * * *` di `netlify.toml`). Fitur ini
+masih berstatus **beta** di Netlify, dan beberapa paket (termasuk kemungkinan
+paket gratis) punya batas jadwal minimum per **jam**, bukan per 15 menit.
 
-**Pembaruan terbaru (AI cadangan & Monitoring Ujian):**
-- **Generate AI multi-provider**: kalau Gemini sibuk/limit, otomatis pindah ke model Gemini lain lalu ke Groq, Cerebras,
-  Mistral, dan OpenRouter (yang key-nya diisi). Generate dibuat bertahap ±10 soal per bagian dengan daftar "hindari soal
-  yang sudah ada" agar tidak dobel; bagian yang gagal bisa diulang tanpa mengulang semuanya.
-- **Menu Monitoring Ujian** + tombol Pesan, +Waktu, Kunci/Buka, Sudahi, Reset (lihat bagian di atas).
-- Halaman siswa: pesan dari pengawas, layar kunci, tambahan waktu, cadangan jawaban ke server, dan timer memakai jam server.
-- `submit-ujian` kini menutup sesi secara atomik (siswa & guru tidak bisa menilai ganda) dan memperhitungkan waktu tambahan.
+**Cara memastikan aman dipakai di paket gratis:**
+1. Setelah deploy, buka menu **Sesi & Token Absensi**, mulai satu sesi, lalu
+   perhatikan hitungan mundurnya. Kalau melewati 00:00 dan berubah jadi
+   peringatan merah "⚠ Belum diperpanjang otomatis", berarti jadwal bawaan
+   Netlify tidak berjalan setiap 15 menit di paket Anda.
+2. Kalau itu terjadi, tambahkan cadangan **gratis** memakai cron eksternal:
+   - Set environment variable `CRON_SECRET` di Netlify (string acak bebas).
+   - Daftar gratis di https://cron-job.org (atau layanan cron gratis lain).
+   - Buat cron job baru: tiap 15 menit, method `GET`, URL
+     `https://<domain-anda>/.netlify/functions/scheduled-rotate-token`,
+     dengan header tambahan `x-cron-secret: <isi CRON_SECRET Anda>`.
+   - Ini berjalan independen dari jadwal Netlify — jadi kalaupun jadwal bawaan
+     Netlify tidak konsisten di paket gratis, token tetap berganti tepat waktu.
+3. Sebagai jaring pengaman terakhir, tombol **"Mulai / Perpanjang"** di menu
+   Sesi & Token selalu bisa dipakai admin kapan saja secara manual.
 
-**Pembaruan sebelumnya:**
-- **Laporan Siswa — perbaikan filter Tahun Ajaran/Semester**: paket ujian LAMA yang
-  menyimpan Semester & Tahun Ajaran digabung jadi satu teks (mis. "Ganjil 2026/2027",
-  peninggalan sebelum keduanya jadi dropdown terpisah) sekarang otomatis dipisah lagi
-  di laporan, sehingga bisa difilter dengan benar per Tahun Ajaran maupun per Semester
-  (sebelumnya baris ini HANYA muncul kalau filter dikosongkan ke "Semua Tahun Ajaran").
-  Dropdown **Semester** juga sekarang memakai pilihan baku yang sama dengan saat
-  meracik Paket Ujian ("Semester 1 (Ganjil)" / "Semester 2 (Genap)"), bukan teks bebas
-  dari data.
-- **Laporan Siswa — "Ujian Diikuti"**: sekarang menghitung ujian yang BENAR-BENAR
-  dikerjakan siswa saja (bukan seluruh mapel yang seharusnya diujikan), dengan
-  keterangan totalnya, contoh: **"2 dari 5 ujian yang harus diikuti"**.
-- **Laporan Siswa**: baris "Paket ujian belum dibuat" sekarang punya tombol **Tandai Tidak
-  Diujikan** — dipakai kalau memang ada mapel yang tidak diujikan (UTS/UAS), supaya baris itu
-  tidak terus muncul di laporan. Bisa dibatalkan lagi lewat tab "Mata Pelajaran" (checkbox
-  "Mapel ini tidak diujikan"). Dropdown **Tahun Ajaran** di Laporan Siswa sekarang selalu
-  terisi (tahun ajaran berjalan + 4 tahun ke depan), tidak lagi kosong hanya karena siswa
-  belum punya paket ujian dengan tahun ajaran tersimpan — sebelumnya ini membuat Rapor/Piagam
-  bisa tercetak untuk "Semua Tahun Ajaran" tanpa disadari.
-- **Mata Pelajaran**: dropdown **"Pilih dari Daftar Mapel (Kurikulum Merdeka)"** — daftar mapel
-  umum Pendidikan Kesetaraan Paket B/Paket C sesuai Kurikulum Merdeka, tinggal pilih untuk
-  mengisi otomatis kolom "Nama Mapel" (kolom manual tetap bisa diisi/diedit bebas, pilih
-  "Lainnya / isi manual" untuk mapel di luar daftar).
-- **Paket Ujian yang sudah "Ditutup"**: tombol **Aktifkan Kembali** (menggantikan tombol
-  "Tutup" yang tidak relevan lagi) — mengaktifkan ulang paket untuk ujian online dengan
-  **kode akses BARU** (kode lama tidak berlaku lagi). Sebelumnya paket yang sudah ditutup
-  tidak bisa diaktifkan lagi lewat menu Edit (Edit hanya mengubah judul/durasi/soal, bukan
-  status).
-- **Kartu Ujian**: sekarang punya **QR code** yang mengarah ke link ujian online siswa
-  (`ujian.html?kode=...`) — siswa tinggal scan, kode akses otomatis terisi, tinggal ketik
-  NISN. Juga ada pilihan **cetak per siswa** (dropdown "Cetak Kartu Untuk") selain cetak
-  semua siswa sekaligus.
-- **Halaman ujian.html** (link ujian untuk siswa): sekarang menampilkan **logo PKBM Nurul
-  Islam** di layar masuk.
-- **Untuk instalasi lama**: jalankan ulang `migrasi-lengkap.sql` di Supabase SQL Editor
-  (menambah kolom `tidak_diujikan` pada `mata_pelajaran`).
 
-**Pembaruan sebelumnya (Ujian Cetak & Nilai Manual):**
-- Menu baru **"Ujian Cetak & Nilai Manual"** untuk siswa yang tidak punya HP:
-  - **Cetak Kartu Ujian**: kartu peserta (Nama, NISN, Kelas, Mapel, Kode Akses) untuk semua siswa di kelas/program paket ujian, siap print.
-  - **Input nilai manual**: guru mengetik ulang jawaban hasil koreksi lembar cetak dalam bentuk tabel (grid) per siswa. Nilai Pilihan Ganda & Isian Singkat dihitung **otomatis** (mesin penilaian yang sama dengan ujian online), Essay tinggal diisi angka skornya saja — guru tidak perlu menghitung nilai akhir sendiri.
-  - Tersedia juga **Unduh Template Excel** & **Upload Excel Jawaban**, untuk guru yang lebih nyaman mengoreksi/mengisi di Excel dulu sebelum disimpan.
-  - Hasilnya otomatis tergabung dengan tabel ujian online, jadi langsung muncul di **Hasil Ujian Online**, **Laporan Siswa**, **Rapor**, dan **Piagam** — tidak ada rekap terpisah untuk siswa manual vs online.
-  - **Untuk instalasi lama**: jalankan `migrasi-lengkap.sql` di Supabase SQL Editor (menambah kolom `mode_ujian` pada `sesi_ujian` dan izin insert nilai manual bagi guru yang login).
+- **Ekspor PDF** (Rekap Absensi, Persentase Kehadiran, Rekap Semester) memakai
+  fitur cetak bawaan browser ("Print to PDF"), bukan generator PDF di server —
+  jadi hasilnya tergantung pengaturan printer/PDF di browser admin (disarankan
+  Chrome, pilih "Save as PDF", orientasi sesuai isi tabel).
+- **Deskripsi kehadiran otomatis** di Rekap Semester hanya kalimat penilaian
+  akhirnya yang bisa diedit lewat Pengaturan Sekolah (templat Sangat Baik/Baik/
+  Cukup/Kurang); kalimat rincian angka (jumlah hadir/izin/sakit/alpa) selalu
+  dihasilkan otomatis dari data agar tetap akurat.
+- **Foto selfie**: pengaturan "wajib/tidak" sudah ada di database & UI pengaturan, tapi
+  alur pengambilan+penyimpanan foto ke Supabase Storage belum disambungkan di frontend —
+  ini titik pengembangan lanjutan yang paling mudah ditambahkan berikutnya (upload ke
+  bucket Storage, simpan URL-nya ke kolom `checkin_photo_url`/`checkout_photo_url` yang
+  sudah tersedia di database).
+- **Deteksi mock-location** memakai flag `GeolocationCoordinates.mocked` yang hanya
+  tersedia di sebagian platform/browser; ini dipakai sebagai lapisan tambahan, bukan
+  satu-satunya pertahanan (radius + akurasi + token + audit log tetap berjalan).
+- **Auto-rotate token** memakai Netlify Scheduled Functions (cron tiap 15 menit). Jika
+  paket Netlify Anda tidak mengaktifkan fitur ini, admin cukup menekan ulang
+  **Mulai/Perpanjang** secara manual — sistem tetap berfungsi, hanya tidak otomatis.
+- Import ulang data siswa di masa depan bisa memakai `scripts/convert_students.py` →
+  `scripts/generate_seed_sql.js` lagi dengan file Dapodik terbaru.
 
-**Pembaruan sebelumnya:**
-- **Racik Paket Ujian**: field **Semester** dan **Tahun Ajaran** yang tadinya teks bebas sekarang jadi
-  dropdown. Semester pilihannya "Semester 1 (Ganjil)" / "Semester 2 (Genap)". Tahun Ajaran otomatis
-  dimulai dari tahun ajaran berjalan (5 tahun ke depan). Paket ujian lama yang datanya tidak cocok
-  dengan pilihan baru tetap muncul sebagai opsi "(data lama)" saat diedit, supaya datanya tidak
-  berubah diam-diam.
-- **Nomor Piagam resmi & urut**: piagam sekarang punya nomor surat dengan format resmi
-  `001/PIAGAM/PKBM-NI/IX/2026` (nomor urut 3 digit / kode piagam / kode lembaga / bulan romawi /
-  tahun), disimpan di tabel `piagam_log` supaya nomornya urut dan tidak pernah dobel walau dicetak
-  oleh beberapa guru bersamaan.
-  > **Untuk instalasi lama**: jalankan `migrasi-lengkap.sql` di Supabase SQL Editor supaya tabel
-  > `piagam_log` dibuat.
-- **Laporan Siswa** (menu baru): rekap nilai satu siswa dari semua ujian online, cetak **Rapor**
-  (transkrip 1 lembar semua mapel + peringkat sekelas) dan **Piagam** (sertifikat 1 lembar berisi
-  transkrip semua mapel + peringkat, bernomor resmi).
-
-**Pembaruan sebelumnya:**
-- Batas Generate AI dinaikkan 40 → 100 soal per sekali generate (gabungan semua jenis soal).
-- Kolom Kelas pada Mata Pelajaran: tiap mapel wajib punya Jenjang (Program) *dan* Kelas
-  (VII-IX untuk Paket B, X-XII untuk Paket C). Bank Soal jadi otomatis terpisah per kelas & jenjang.
-  Mata Pelajaran sekarang juga bisa **diedit** dan **dihapus**.
-- Template Bank Soal dirombak jadi 1 file Excel (.xlsx) dengan sheet terpisah per jenis soal.
-
-**Pembaruan v7:**
-- **Racik Paket**: panel *Pilih cepat soal* — pilih semua, kosongkan, ambil N soal (urut/acak), atau rentang nomor, terpisah per jenis (mis. PG 25, Isian 10, Essay 5). Soal di daftar dikelompokkan per jenis.
-- **Cetak Word** (menggantikan Cetak B): unduh file `.doc` lengkap dengan kop, soal, gambar, dan kunci jawaban yang bisa diedit di Microsoft Word. Rumus `$...$` tampil sebagai teks di Word.
-
-**Pembaruan v6:** nilai akhir 0-100 berbobot per jenis soal (PG/isian/essay).
-
-**Pembaruan v4:**
-- Tabel siswa sekarang `students` (sesuai database absensi) dan hanya siswa berstatus AKTIF yang bisa masuk ujian. Untuk PIN, isi env var `KOLOM_PIN` dengan `tanggal_lahir` (opsional).
-
-**Pembaruan v3:**
-- **Pembahasan** soal (tampil di kunci jawaban cetak), **gambar** pada soal, dan **rumus** (tulis `$x^2+3x$`) di layar ujian & cetak.
-- **Import soal dari Excel/CSV** (tombol *Unduh Template* di Bank Soal). Untuk file Word: salin tabelnya ke Excel dulu.
-- **Cetak Versi B**: urutan soal & opsi PG diacak, kunci otomatis menyesuaikan.
-- **Opsi PG diacak** di ujian online bila paket diberi acak soal.
-- **Analisis butir soal** & **deteksi pindah tab** (jumlah tampil di tabel hasil).
-- **PIN siswa (opsional)**: set env var `KOLOM_PIN` (mis. `tanggal_lahir`, nama kolom di tabel siswa). Siswa wajib mengisi PIN yang cocok.
-
-**Pembaruan v2:**
-- **Kop soal** PKBM Nurul Islam (logo + identitas + Jenjang/Mapel/Kurikulum/Nama/Kelas) pada hasil cetak. Ganti `logo.png` untuk mengubah logo.
-- **Batas waktu dicek di server** (toleransi 3 menit); soal di luar paket & duplikat ditolak.
-- **Acak soal stabil**: urutan tetap sama saat siswa masuk lagi.
-- **Isian singkat** mendukung kunci alternatif dengan tanda `|` (contoh: `Jakarta|DKI Jakarta`), spasi ganda diabaikan.
-- **Hasil ujian**: statistik (rata-rata/tertinggi/terendah), **ekspor CSV** (buka di Excel), dan tombol **Reset** sesi siswa (jalankan `migrasi-lengkap.sql` dulu).
-
-**Update terbaru:**
-- **Fix bug penting**: `mulai-ujian.js` sebelumnya query ke tabel `students`, seharusnya `siswa`
-  (sesuai skema aplikasi absensi) — kalau tidak diperbaiki, siswa selalu gagal login ujian.
-  Nama tabel/kolom siswa sekarang juga bisa dikustomisasi lewat env var opsional
-  `TABEL_SISWA`, `KOLOM_NISN`, `KOLOM_NAMA_SISWA` kalau skema kamu berbeda.
-- Soal di Bank Soal sekarang bisa **diedit**, tidak cuma dihapus.
-- Paket Ujian sekarang bisa **diedit** (ganti judul/durasi/soal) dan **dihapus**.
-- Bank Soal punya **pencarian** (cari teks di pertanyaan/topik) dan **filter jenis soal**.
-- Jawaban siswa saat ujian online sekarang **autosave ke localStorage browser** —
-  kalau tab tidak sengaja ter-refresh atau tertutup, jawaban tidak hilang saat
-  siswa masuk lagi dengan kode akses + NISN yang sama. Ada juga peringatan browser
-  sebelum menutup tab saat ujian masih berlangsung.
-- Halaman cetak soal sekarang punya baris jawaban yang proporsional: isian singkat
-  1 baris, essay 4 baris, dan kunci jawaban dipisah ke halaman baru saat print.
-
-## Arsip nilai permanen
-Jalankan `migrasi-arsip-nilai.sql` sekali di Supabase SQL Editor (sudah dijalankan pada proyek PKBM Nurul Islam).
-- Setiap nilai ujian yang selesai/dinilai otomatis disalin ke tabel `arsip_nilai` oleh trigger database.
-- Salinan ini tidak ikut terhapus saat paket dihapus atau sesi siswa di-reset; hanya bisa dibaca dari aplikasi (menu **Arsip Nilai**).
-- Menghapus paket yang sudah punya hasil sekarang berarti **mengarsipkan** paket (nilai tetap utuh di Hasil Ujian, Laporan, Rapor).
+## Keamanan ringkas
+- RLS aktif di semua tabel, **tanpa policy untuk anon/authenticated** → hanya
+  `service_role` (dipakai backend) yang bisa akses; browser tidak pernah bicara
+  langsung ke Supabase.
+- Password di-hash dengan bcrypt; sesi login memakai JWT (siswa 12 jam, admin 8 jam).
+- Rate limiting sederhana pada login & absen; semua absen tercatat di `audit_logs`,
+  semua percobaan mencurigakan (di luar radius, akurasi buruk, token salah, indikasi
+  mock location) tercatat di `attendance_security_events` dengan status yang tetap
+  jujur (tidak otomatis diubah jadi "Hadir").

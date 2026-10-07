@@ -1,17 +1,31 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
   "functions": {
-    "api/*.js": {
-      "maxDuration": 60
+    "api/**/*.js": {
+      "maxDuration": 60,
+      "includeFiles": "netlify/functions/**"
     }
   },
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, max-age=0" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:name",
+      "destination": "/api/gateway?name=:name"
     }
   ]
 }
