@@ -1,22 +1,14 @@
 [build]
-  publish = "public"
   functions = "netlify/functions"
-  command = "true"
+  publish = "."
+
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = "index.html,ujian.html"
 
 [functions]
   node_bundler = "esbuild"
-  # logo cadangan untuk kop berkas Word rekap (dipakai bila logo belum diunggah di Pengaturan)
-  included_files = ["netlify/functions/_lib/logo-pkbm.png"]
 
-# URL bersih: frontend memanggil /api/xxx, Netlify meneruskan ke functions/xxx
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"

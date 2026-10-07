@@ -1,55 +1,69 @@
-# Deploy Aplikasi Absensi ke Vercel
+# DEPLOY VERCEL — APLIKASI UJIAN
 
-Folder ini sudah ditambahkan `api/[...path].js` + `vercel.json` supaya bisa
-di-deploy ke Vercel TANPA mengubah satu pun file di `netlify/functions/`.
-Deployment Netlify yang sudah ada tetap jalan seperti biasa — dua platform
-ini memakai kode backend yang sama persis, cuma beda "jembatan" pemanggilan.
+## 1. Environment Variables
 
-## Yang ditambahkan (baru, tidak mengubah yang lama)
-- `api/[...path].js` — satu adapter yang meneruskan semua `/api/xxx` ke
-  handler yang sesuai di `netlify/functions/xxx.js`.
-- `vercel.json` — memberi tahu Vercel bahwa file statis (index.html, admin/,
-  siswa/, assets/) ada di folder `public/`, dan mengatur `api/*` sebagai
-  serverless function.
+Di Vercel → Project → Settings → Environment Variables, isi:
 
-## Langkah deploy
-1. Push folder ini (termasuk `public/`, `netlify/`, `api/`, `vercel.json`,
-   `package.json`) ke repo GitHub — boleh repo yang sama dengan yang
-   dipakai Netlify.
-2. Di Vercel: Import Project dari repo itu. Root Directory `./`.
-   Framework Preset: **Other**. Tidak perlu ubah Build Command / Install
-   Command (biarkan default `npm install`).
-3. Isi Environment Variables di Vercel Project Settings (nilai SAMA seperti
-   yang sudah kamu isi di Netlify):
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `JWT_SECRET`
-   - `CRON_SECRET` (opsional, lihat bagian Rotasi Token di bawah)
-4. Deploy. Setelah selesai, buka `https://nama-project.vercel.app` — harus
-   tampil halaman yang sama seperti di Netlify.
+- `SUPABASE_URL` = URL project Supabase
+- `SUPABASE_SERVICE_ROLE_KEY` = service_role key Supabase
+- `SUPABASE_ANON_KEY` = anon/public key Supabase
+- `GEMINI_API_KEY` = API key Google AI Studio
 
-## Rotasi token QR (scheduled function)
-`scheduled-rotate-token.js` awalnya didesain jalan otomatis tiap 15 menit
-lewat Netlify Scheduled Functions. Vercel punya mekanisme cron sendiri, tapi
-paket gratisnya biasanya cuma bisa dipicu 1x/hari — TIDAK cukup untuk rotasi
-tiap 15 menit.
+Opsional AI cadangan:
+- `GROQ_API_KEY`
+- `CEREBRAS_API_KEY`
+- `MISTRAL_API_KEY`
+- `OPENROUTER_API_KEY`
 
-Kabar baiknya, kode ini **sudah** dirancang untuk dipicu dari luar (cron
-eksternal gratis, misalnya cron-job.org), persis untuk mengatasi batasan
-serupa di Netlify. Jadi di Vercel pun caranya sama:
+Opsional konfigurasi AI:
+- `GEMINI_MODEL=gemini-3.6-flash`
+- `GEMINI_FALLBACK_MODELS=gemini-3.5-flash-lite,gemini-2.5-flash`
+- `AI_PROVIDER_ORDER=gemini,groq,cerebras,mistral,openrouter`
+- `AI_BUDGET_MS=24000`
 
-1. Isi `CRON_SECRET` di Environment Variables Vercel dengan string acak.
-2. Di cron-job.org (atau layanan sejenis), buat job yang memanggil setiap
-   15 menit:
-   `POST https://nama-project.vercel.app/api/scheduled-rotate-token`
-   dengan header `x-cron-secret: <nilai CRON_SECRET>`.
+## 2. Supabase
 
-Kalau kamu sudah pakai cron eksternal ini untuk Netlify, tinggal tambahkan
-URL Vercel-nya sebagai job kedua (atau ganti total ke Vercel kalau nanti
-sudah pindah sepenuhnya).
+Pastikan schema/migrasi SQL dari proyek asli sudah dijalankan dan tabel yang dipakai aplikasi tersedia.
 
-## Catatan keamanan
-- `SUPABASE_SERVICE_ROLE_KEY` dan `JWT_SECRET` HARUS diisi terpisah di
-  Vercel (tidak otomatis ikut dari Netlify atau dari GitHub).
-- Jangan commit file `.env` berisi nilai asli ke repo — pakai `.env.example`
-  sebagai referensi saja.
+## 3. Deploy
+
+Upload folder ini ke GitHub, lalu import repository tersebut ke Vercel.
+
+Framework Preset: Other.
+
+Build Command: kosongkan.
+
+Output Directory: kosongkan.
+
+Vercel otomatis mengenali folder `api/`.
+
+## 4. Setelah deploy
+
+Tes:
+- `https://DOMAIN-VERCEL/api/generate-soal`
+  - membuka URL langsung dengan GET boleh menghasilkan `Method Not Allowed`; itu normal.
+  - pengujian sebenarnya dilakukan dari tombol Generate dengan AI.
+- Login guru.
+- Bank Soal → Generate dengan AI.
+- Coba 5 soal terlebih dahulu.
+
+## 5. Jika AI gagal
+
+Buka Vercel → Deployments → deployment terbaru → Functions/Logs.
+
+Kesalahan umum:
+- `401/403`: API key AI salah/tidak aktif.
+- `404 model`: nama model tidak tersedia; gunakan:
+  `gemini-3.6-flash`
+  atau `gemini-3.5-flash-lite`.
+- `429`: kuota/rate limit; tambahkan provider cadangan.
+- `SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY`: environment variable Supabase belum diisi.
+
+## Penting
+
+Jangan pernah memasukkan `SUPABASE_SERVICE_ROLE_KEY` ke `index.html`, `ujian.html`, atau JavaScript frontend.
+
+## 6. Super Admin (opsional)
+- `SUPER_ADMIN_EMAILS` = email Super Admin, pisahkan koma (mis. `kepala@contoh.com`). Tanpa ini, akun admin tertua otomatis jadi Super Admin saat login pertama.
+- Jalankan `migrasi-v12-superadmin.sql` di Supabase SQL Editor.
+- Setelah menambah/mengubah variabel di Vercel, lakukan Redeploy agar berlaku.
