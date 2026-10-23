@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-tema="malam">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sesi &amp; Token Absensi — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -19,7 +19,8 @@
 <script>
 const slot = renderAdminShell('/admin/token.html', 'Sesi & Token Absensi');
 slot.innerHTML = `
-  <p>Buat sesi untuk membuka jendela absensi. Kode/QR berganti otomatis setiap <b>15 menit</b> selama sesi masih berjalan.</p>
+  <p><b>Absen Datang</b>: QR dibuka otomatis sesuai jam buka yang diatur Super Admin (Pengaturan → Jadwal Program), <b>tidak berganti</b> selama jendela berjalan, dan otomatis tutup di jam akhir. Setelah tutup, siswa hanya bisa absen lewat <a href="/admin/absen-manual.html" style="color:var(--primary);font-weight:600;">Absen Manual</a>; membuka kembali QR hanya bisa oleh <b>Super Admin</b>. Terlambat dihitung bila absen melewati toleransi dari jam buka. <b>Absen Pulang</b>: kode berganti tiap 15 menit.</p>
+  <div id="info-jendela" class="hint" style="margin-bottom:12px;"></div>
   <div class="sesi-grid">
     ${['PAKET_B', 'PAKET_C'].map((prog) => `
       <div class="card" data-program="${prog}">
@@ -36,7 +37,7 @@ slot.innerHTML = `
               <div class="hint" data-el="countdown" style="margin-top:4px;">-</div>
             </div>
             <div style="display:flex; gap:8px;">
-              <button class="btn btn-primary btn-sm btn-block" data-action="mulai">Mulai / Perpanjang</button>
+              <button class="btn btn-primary btn-sm btn-block" data-action="mulai">${s === 'DATANG' ? 'Buka Kembali (Super Admin)' : 'Mulai / Perpanjang'}</button>
               <button class="btn btn-outline btn-sm btn-block" data-action="stop">Hentikan</button>
               <button class="btn btn-ghost btn-sm" data-action="layar-penuh" title="Layar Penuh">⤢</button>
             </div>
@@ -49,11 +50,17 @@ slot.innerHTML = `
 `;
 
 let sessionData = {};
+const hhJam = (d) => new Date(d).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }).replace(':', '.');
 
 async function muatSesi() {
   try {
     const data = await apiCall('/admin-token-current');
     sessionData = data.sessions;
+    window.__jendela = data.jendela_datang || {};
+    const jd = data.jendela_datang || {};
+    document.getElementById('info-jendela').innerHTML = ['PAKET_B', 'PAKET_C'].map((p) => jd[p]
+      ? `<b>${p.replace('_', ' ')}</b>: absen datang ${jd[p].mulai.replace(':', '.')}–${jd[p].selesai.replace(':', '.')}, terlambat bila lewat ${jd[p].toleransi_menit} menit dari jam buka`
+      : '').filter(Boolean).join(' &nbsp;|&nbsp; ');
     for (const [combo, info] of Object.entries(data.sessions)) {
       const [program, sesi] = combo.split(':');
       const box = document.querySelector(`[data-program="${program}"] [data-sesi="${sesi}"]`);
@@ -69,7 +76,9 @@ async function muatSesi() {
         new QRCode(qrEl, { text: info.token, width: 120, height: 120 });
         const sisa = Math.max(0, Math.floor((new Date(info.expires_at) - new Date()) / 1000));
         const terlambat = (new Date() - new Date(info.expires_at)) / 1000; // detik sejak kedaluwarsa
-        if (terlambat > 90) {
+        if (sesi === 'DATANG') {
+          cdEl.textContent = `Ditutup pukul ${hhJam(info.expires_at)} (sisa ${Math.floor(sisa/60)} mnt)`;
+        } else if (terlambat > 90) {
           cdEl.innerHTML = `<span style="color:var(--danger); font-weight:600;">⚠ Belum diperpanjang otomatis (${Math.floor(terlambat/60)} menit lewat). Klik "Mulai / Perpanjang".</span>`;
         } else {
           cdEl.textContent = `Berganti dalam ${String(Math.floor(sisa/60)).padStart(2,'0')}:${String(sisa%60).padStart(2,'0')}`;
@@ -77,7 +86,7 @@ async function muatSesi() {
       } else {
         statusEl.className = 'badge badge-belum'; statusEl.textContent = 'Tidak Aktif';
         codeEl.textContent = '------';
-        cdEl.textContent = '-';
+        cdEl.textContent = sesi === 'DATANG' ? 'Belum dibuka / sudah ditutup. Siswa memakai Absen Manual.' : '-';
       }
     }
   } catch (err) {
@@ -95,9 +104,21 @@ slot.addEventListener('click', async (e) => {
   const action = btn.dataset.action;
 
   if (action === 'mulai') {
+    let durasi;
+    if (sesi === 'DATANG') {
+      const info = JSON.parse(localStorage.getItem('admin_info') || '{}');
+      if (info.role !== 'SUPER_ADMIN') { toast('Hanya Super Admin yang dapat membuka kembali absen datang.', 'error'); return; }
+      const jd = (window.__jendela || {})[program];
+      const lewat = jd && new Date().toLocaleTimeString('en-GB', { hour12: false, timeZone: 'Asia/Jakarta' }).slice(0, 5) >= jd.selesai;
+      if (lewat) {
+        const v = prompt('Jendela absen datang sudah lewat. Buka kembali berapa menit? (5–180)', '30');
+        if (!v) return;
+        durasi = Number(v);
+      }
+    }
     btn.disabled = true;
     try {
-      await apiCall('/admin-token-rotate', { method: 'POST', body: { program, sesi, auto_rotate: true } });
+      await apiCall('/admin-token-rotate', { method: 'POST', body: { program, sesi, auto_rotate: true, durasi_menit: durasi } });
       toast(`Sesi ${sesi} ${program.replace('_',' ')} dimulai.`, 'success');
       muatSesi();
     } catch (err) { toast(err.message, 'error'); } finally { btn.disabled = false; }
@@ -131,7 +152,7 @@ function tampilkanLayarPenuh(program, sesi) {
       new QRCode(document.getElementById('lp-qr'), { text: info.token, width: 260, height: 260 });
       document.getElementById('lp-code').textContent = info.token;
       const sisa = Math.max(0, Math.floor((new Date(info.expires_at) - new Date()) / 1000));
-      document.getElementById('lp-cd').textContent = `Berganti dalam ${String(Math.floor(sisa/60)).padStart(2,'0')}:${String(sisa%60).padStart(2,'0')}`;
+      document.getElementById('lp-cd').textContent = `${sesi === 'DATANG' ? 'Ditutup dalam' : 'Berganti dalam'} ${String(Math.floor(sisa/60)).padStart(2,'0')}:${String(sisa%60).padStart(2,'0')}`;
     } else {
       document.getElementById('lp-code').textContent = 'TIDAK AKTIF';
       document.getElementById('lp-cd').textContent = 'Mulai sesi ini dari panel admin.';

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-tema="malam">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Persentase Kehadiran — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 <style>.filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; } .filters > * { flex: 1 1 150px; }</style>
 </head>
@@ -78,7 +78,7 @@ function terapkanPreset() {
 document.getElementById('f-preset').addEventListener('change', terapkanPreset);
 terapkanPreset();
 
-const kc = KelasChips.pasang(document.getElementById('kelas-chips'), { onChange: () => cari() });
+const kc = KelasChips.pasang(document.getElementById('kelas-chips'), { multi: true, onChange: () => cari() });
 ['f-jenjang','f-program'].forEach((id) => {
   document.getElementById(id).addEventListener('input', () => kc.setFilter({
     program: document.getElementById('f-program').value, jenjang: document.getElementById('f-jenjang').value,
@@ -87,7 +87,7 @@ const kc = KelasChips.pasang(document.getElementById('kelas-chips'), { onChange:
 
 function buildQuery() {
   const p = new URLSearchParams();
-  if (kc.get()) p.set('kelas', kc.get());
+  if (kc.get().length) p.set('kelas', kc.get().join(','));
   const map = {
     'f-mulai': 'tanggal_mulai', 'f-akhir': 'tanggal_akhir', 'f-jenjang': 'jenjang',
     'f-program': 'program', 'f-nama': 'nama',

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-tema="malam">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>User Admin — Absensi PKBM Nurul Islam</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 </head>
 <body>
@@ -27,15 +27,17 @@ slot.innerHTML = `
   </div>
 `;
 
+let daftarAdmin = [];
 async function muat() {
   try {
     const { data } = await apiCall('/admin-users');
+    daftarAdmin = data;
     document.getElementById('tbody-users').innerHTML = data.map((a) => `
       <tr>
         <td>${a.nama}</td><td>${a.email}</td>
         <td><span class="badge ${a.role==='SUPER_ADMIN'?'badge-verifikasi':'badge-belum'}">${a.role.replace('_',' ')}</span></td>
         <td>${a.aktif ? '<span class="badge badge-hadir">Aktif</span>' : '<span class="badge badge-tidak_hadir">Nonaktif</span>'}</td>
-        <td><button class="btn btn-outline btn-sm" data-toggle="${a.id}" data-aktif="${a.aktif}">${a.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button></td>
+        <td style="white-space:nowrap;"><button class="btn btn-outline btn-sm" data-reset="${a.id}">Reset Password</button> <button class="btn btn-outline btn-sm" data-toggle="${a.id}" data-aktif="${a.aktif}">${a.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button></td>
       </tr>
     `).join('');
   } catch (err) {
@@ -87,6 +89,73 @@ slot.addEventListener('click', async (e) => {
     await apiCall(`/admin-users?id=${btn.dataset.toggle}`, { method: 'PUT', body: { aktif: aktifBaru } });
     toast('Status admin diperbarui.', 'success'); muat();
   } catch (err) { toast(err.message, 'error'); }
+});
+
+function passwordAcak() {
+  const huruf = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const acak = crypto.getRandomValues(new Uint32Array(10));
+  return Array.from(acak, (n) => huruf[n % huruf.length]).join('');
+}
+
+function bukaReset(a) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-backdrop';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Reset Password</h3>
+      <p id="rs-info" style="margin-top:0;"></p>
+      <form id="form-reset">
+        <div class="field">
+          <label>Password baru (min. 8 karakter)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="password" id="rs-pass" minlength="8" required autocomplete="new-password" style="flex:1;">
+            <button type="button" class="btn btn-outline btn-sm" id="rs-acak">Buat acak</button>
+          </div>
+          <label style="display:flex; gap:6px; align-items:center; margin-top:8px; font-weight:400;"><input type="checkbox" id="rs-lihat"> Tampilkan password</label>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn btn-outline btn-block" id="rs-batal">Batal</button>
+          <button type="submit" class="btn btn-primary btn-block">Reset Password</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#rs-info').textContent = `${a.nama} (${a.email})`;
+  const pass = modal.querySelector('#rs-pass');
+  modal.querySelector('#rs-batal').onclick = () => modal.remove();
+  modal.querySelector('#rs-lihat').onchange = (e) => { pass.type = e.target.checked ? 'text' : 'password'; };
+  modal.querySelector('#rs-acak').onclick = () => {
+    pass.value = passwordAcak(); pass.type = 'text'; modal.querySelector('#rs-lihat').checked = true;
+  };
+  modal.querySelector('#form-reset').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const baru = pass.value;
+    try {
+      await apiCall(`/admin-users?id=${a.id}`, { method: 'PUT', body: { password: baru } });
+      toast('Password berhasil direset.', 'success');
+      modal.querySelector('.modal').innerHTML = `
+        <h3>Password sudah direset</h3>
+        <p style="margin-top:0;"></p>
+        <p>Password baru:</p>
+        <p><code id="rs-hasil" style="font-size:1.2rem; font-weight:700; user-select:all;"></code></p>
+        <p style="font-size:.85rem;">Catat dan berikan kepada yang bersangkutan sekarang. Password disimpan terenkripsi sehingga tidak bisa dilihat lagi nanti.</p>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn btn-outline btn-block" id="rs-salin">Salin</button>
+          <button type="button" class="btn btn-primary btn-block" id="rs-tutup">Tutup</button>
+        </div>`;
+      modal.querySelector('p').textContent = `${a.nama} (${a.email})`;
+      modal.querySelector('#rs-hasil').textContent = baru;
+      modal.querySelector('#rs-salin').onclick = () => { navigator.clipboard?.writeText(baru).then(() => toast('Password disalin.', 'success')).catch(() => {}); };
+      modal.querySelector('#rs-tutup').onclick = () => modal.remove();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+slot.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-reset]');
+  if (!btn) return;
+  const a = daftarAdmin.find((x) => String(x.id) === btn.dataset.reset);
+  if (a) bukaReset(a);
 });
 
 muat();

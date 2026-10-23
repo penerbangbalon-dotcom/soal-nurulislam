@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-tema="malam">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Siswa — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 <style>.filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; } .filters > * { flex: 1 1 140px; }</style>
 </head>
@@ -42,7 +42,7 @@ slot.innerHTML = `
 
 let page = 1;
 const perPage = 25;
-const kc = KelasChips.pasang(document.getElementById('kelas-chips'), { onChange: () => { page = 1; muat(); } });
+const kc = KelasChips.pasang(document.getElementById('kelas-chips'), { multi: true, onChange: () => { page = 1; muat(); } });
 
 function buildQuery() {
   const p = new URLSearchParams();
@@ -55,7 +55,7 @@ function buildQuery() {
   if (jenjang) p.set('jenjang', jenjang);
   if (program) p.set('program', program);
   if (status) p.set('status', status);
-  if (kc.get()) p.set('kelas', kc.get());
+  if (kc.get().length) p.set('kelas', kc.get().join(','));
   if (flag) p.set('butuh_konfirmasi', 'true');
   p.set('page', page); p.set('per_page', perPage);
   return p.toString();

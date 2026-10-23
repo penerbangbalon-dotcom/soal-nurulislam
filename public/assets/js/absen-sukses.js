@@ -37,7 +37,7 @@
 
   function konfeti() {
     if (!window.confetti) return;
-    const warna = ['#1F8A5F', '#0E5C4A', '#D97B29', '#FFD166', '#2A6F97'];
+    const warna = ['#22D3EE', '#7C5CFC', '#F0ABFC', '#34D399', '#FFD166'];
     const tembak = (x, sudut) => confetti({ particleCount: 80, spread: 70, angle: sudut, origin: { x, y: 0.7 }, colors: warna, zIndex: 10001 });
     tembak(0.1, 60); tembak(0.9, 120);
     setTimeout(() => confetti({ particleCount: 120, spread: 100, origin: { x: 0.5, y: 0.6 }, colors: warna, zIndex: 10001 }), 250);
@@ -48,20 +48,20 @@
     opsi = opsi || {};
     const terlambat = opsi.status === 'TERLAMBAT';
     const judul = opsi.mode === 'pulang' ? 'Absen Pulang Berhasil!' : 'Absen Datang Berhasil!';
-    const warna = terlambat ? '#D97B29' : '#1F8A5F';
+    const warna = terlambat ? '#F59E0B' : '#10B981';
 
     if (!document.getElementById('absen-ok-style')) {
       const st = document.createElement('style');
       st.id = 'absen-ok-style';
       st.textContent = `
-        .absen-ok-bg{position:fixed;inset:0;background:rgba(9,63,50,.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;animation:aoFade .2s ease;}
-        .absen-ok{background:#fff;border-radius:28px;padding:36px 28px 28px;text-align:center;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:aoPop .5s cubic-bezier(.2,1.4,.4,1);}
+        .absen-ok-bg{position:fixed;inset:0;background:rgba(4,5,18,.78);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;animation:aoFade .2s ease;}
+        .absen-ok{background:#0E1131;border:1px solid rgba(129,140,248,.28);border-radius:28px;padding:36px 28px 28px;text-align:center;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:aoPop .5s cubic-bezier(.2,1.4,.4,1);}
         .absen-ok svg{width:150px;height:150px;display:block;margin:0 auto;}
         .absen-ok .ao-ring{fill:var(--ao-warna);}
         .absen-ok .ao-check{fill:none;stroke:#fff;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:70;stroke-dashoffset:70;animation:aoDraw .5s .3s ease forwards;}
-        .absen-ok h2{margin:18px 0 6px;font-size:1.6rem;font-weight:800;color:#1C2420;}
-        .absen-ok .ao-nama{font-size:1.15rem;font-weight:600;color:#1C2420;}
-        .absen-ok .ao-info{margin-top:6px;font-size:.95rem;color:#5B665F;}
+        .absen-ok h2{margin:18px 0 6px;font-size:1.6rem;font-weight:800;color:#F1F3FF;}
+        .absen-ok .ao-nama{font-size:1.15rem;font-weight:600;color:#F1F3FF;}
+        .absen-ok .ao-info{margin-top:6px;font-size:.95rem;color:#9AA3D1;}
         .absen-ok .ao-status{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:999px;font-weight:700;font-size:.9rem;color:#fff;background:var(--ao-warna);}
         .absen-ok button{margin-top:22px;width:100%;padding:14px;border:0;border-radius:12px;font-size:1rem;font-weight:700;color:#fff;background:var(--ao-warna);cursor:pointer;}
         @keyframes aoPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}

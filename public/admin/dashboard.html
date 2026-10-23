@@ -1,19 +1,42 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-tema="malam">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dashboard Admin — Absensi PKBM Nurul Islam</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 </head>
 <body>
 <script src="/assets/js/api.js"></script>
 <script src="/assets/js/admin-shell.js"></script>
 <script src="/assets/js/kelas-chips.js"></script>
+<script src="/assets/js/absen-aksi.js"></script>
 <script>
 const slot = renderAdminShell('/admin/dashboard.html', 'Dashboard');
 slot.innerHTML = `
+  <section class="hero-card">
+    <div>
+      <h1>Halo, <span class="grad-text" id="hero-nama">ADMIN</span></h1>
+      <p id="hero-sapa"></p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-sm" href="/admin/token.html">Sesi &amp; Token</a>
+        ${(JSON.parse(localStorage.getItem('admin_info') || '{}').role === 'SUPER_ADMIN') ? '<a class="btn btn-accent btn-sm" href="/admin/absen-manual.html">Absen Manual</a>' : ''}
+        <a class="btn btn-outline btn-sm" href="/admin/rekap.html">Rekap Absensi</a>
+        <a class="btn btn-outline btn-sm" href="/admin/siswa.html">Data Siswa</a>
+      </div>
+    </div>
+    <svg class="hero-art" viewBox="0 0 300 150" fill="none" aria-hidden="true">
+      <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#7C5CFC"/></linearGradient></defs>
+      <path d="M10 118 C70 30 150 14 215 38" stroke="#F0ABFC" stroke-opacity=".7" stroke-width="1.5"/>
+      <circle cx="215" cy="78" r="58" stroke="#818CF8" stroke-opacity=".25"/>
+      <path d="M215 52 L282 76 L215 100 L148 76 Z" fill="url(#hg)"/>
+      <path d="M180 90 V112 C196 124 234 124 250 112 V90 L215 102 Z" fill="#5B3FD6"/>
+      <path d="M282 76 V108" stroke="#F0ABFC" stroke-width="2"/><circle cx="282" cy="112" r="4" fill="#F0ABFC"/>
+      <circle cx="120" cy="28" r="2.5" fill="#22D3EE"/><circle cx="262" cy="30" r="2" fill="#22D3EE"/><circle cx="150" cy="130" r="2.5" fill="#22D3EE"/>
+    </svg>
+  </section>
+
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
     <p style="margin:0;">Ringkasan kehadiran hari ini &mdash; <span id="live-dot" style="color:var(--success); font-weight:700;">● LIVE</span></p>
     <span style="font-size:0.8rem; color:var(--ink-muted);" id="last-update"></span>
@@ -38,7 +61,7 @@ slot.innerHTML = `
     </div>
     <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
       <div style="text-align:center;">
-        <div style="font-size:2.2rem; font-weight:800; color:var(--primary);" id="persen-rata">-</div>
+        <div style="font-size:2.2rem; font-weight:800; color:var(--primary-ink);" id="persen-rata">-</div>
         <div style="font-size:0.8rem; color:var(--ink-muted);">Rata-rata kehadiran</div>
       </div>
       <div style="flex:1; min-width:220px;">
@@ -58,13 +81,22 @@ slot.innerHTML = `
       <table>
         <thead><tr>
           <th>No</th><th>NISN</th><th>Nama</th><th>Jenjang</th><th>Program</th><th>Kelas</th>
-          <th>Datang</th><th>Pulang</th><th>Status</th><th>Jarak</th>
+          <th>Datang</th><th>Pulang</th><th>Status</th><th>Jarak</th><th>Aksi</th>
         </tr></thead>
-        <tbody id="tbody-live"><tr><td colspan="10">Memuat...</td></tr></tbody>
+        <tbody id="tbody-live"><tr><td colspan="11">Memuat...</td></tr></tbody>
       </table>
     </div>
   </div>
 `;
+
+(function sapa() {
+  const info = JSON.parse(localStorage.getItem('admin_info') || '{}');
+  document.getElementById('hero-nama').textContent = (info.nama || 'Admin').toUpperCase();
+  const h = new Date().getHours();
+  const waktu = h < 11 ? 'pagi' : h < 15 ? 'siang' : h < 18 ? 'sore' : 'malam';
+  const hari = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+  document.getElementById('hero-sapa').textContent = `Selamat ${waktu}! Semoga hari ${hari} Anda menyenangkan.`;
+})();
 
 function statCard(num, label, color) {
   return `<div class="stat-card"><div class="num" style="color:${color || 'var(--ink)'}">${num}</div><div class="label">${label}</div></div>`;
@@ -83,7 +115,8 @@ function renderBucket(el, b) {
 }
 
 let searchTerm = '';
-const kc = KelasChips.pasang(document.getElementById('kelas-chips'), { onChange: () => muatLive() });
+let liveRows = [];
+const kc = KelasChips.pasang(document.getElementById('kelas-chips'), { multi: true, onChange: () => muatLive() });
 document.getElementById('search-live').addEventListener('input', (e) => { searchTerm = e.target.value; muatLive(); });
 
 async function muatStats() {
@@ -110,18 +143,21 @@ async function muatLive() {
   try {
     const qp = new URLSearchParams();
     if (searchTerm) qp.set('search', searchTerm);
-    if (kc.get()) qp.set('kelas', kc.get());
+    if (kc.get().length) qp.set('kelas', kc.get().join(','));
     const q = qp.toString() ? `?${qp.toString()}` : '';
     const data = await apiCall(`/admin-attendance-live${q}`);
     const tbody = document.getElementById('tbody-live');
-    if (!data.data.length) { tbody.innerHTML = '<tr><td colspan="10">Tidak ada data.</td></tr>'; return; }
-    tbody.innerHTML = data.data.slice(0, 100).map((r, i) => `
-      <tr>
+    if (!data.data.length) { tbody.innerHTML = '<tr><td colspan="11">Tidak ada data.</td></tr>'; liveRows = []; return; }
+    liveRows = data.data.slice(0, 100);
+    if (document.getElementById('absen-aksi-modal')) return; // jangan render ulang saat dialog edit/hapus terbuka
+    tbody.innerHTML = liveRows.map((r, i) => `
+      <tr data-idx="${i}">
         <td>${i + 1}</td><td>${r.nisn || '-'}</td><td>${r.nama}</td><td>${r.jenjang}</td>
         <td>${r.program.replace('_',' ')}</td><td>${r.kelas}</td>
         <td>${fmtJam(r.datang)}</td><td>${fmtJam(r.pulang)}</td>
-        <td><span class="${statusBadgeClass(r.status_datang)}">${statusLabel(r.status_datang)}</span></td>
+        <td><span class="${statusBadgeClass(r.status_datang)}">${statusLabel(r.status_datang)}</span>${AbsenAksi.sumberBadge(r)}</td>
         <td>${r.jarak_datang_m != null ? r.jarak_datang_m + ' m' : '-'}</td>
+        <td>${AbsenAksi.tombol(r)}</td>
       </tr>
     `).join('');
   } catch (err) {
@@ -129,6 +165,7 @@ async function muatLive() {
   }
 }
 
+AbsenAksi.pasang(document.getElementById('tbody-live'), (i) => liveRows[i], () => { muatLive(); muatStats(); });
 muatStats(); muatLive();
 setInterval(muatStats, 8000);
 setInterval(muatLive, 8000);
