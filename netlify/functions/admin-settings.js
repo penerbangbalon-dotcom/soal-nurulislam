@@ -2,8 +2,6 @@ const { supabaseAdmin } = require('./_lib/supabaseAdmin');
 const { requireAdmin } = require('./_lib/auth');
 const { json, preflight, writeAudit } = require('./_lib/utils');
 
-const TEMA_VALID = ['malam', 'kuning', 'biru', 'hijau', 'ungu', 'teal', 'mawar'];
-
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return preflight();
   const supabase = supabaseAdmin();
@@ -29,12 +27,9 @@ exports.handler = async (event) => {
       if (s.radius_m != null && (s.radius_m < 50 || s.radius_m > 100)) {
         return json(400, { error: 'Radius harus antara 50 dan 100 meter.' });
       }
-      if (s.tema_warna !== undefined && !TEMA_VALID.includes(s.tema_warna)) {
-        return json(400, { error: 'Pilihan warna tidak dikenal.' });
-      }
       const allowed = [
         'nama_sekolah', 'alamat', 'latitude', 'longitude', 'radius_m', 'gps_accuracy_max_m', 'selfie_wajib', 'hari_aktif',
-        'templat_deskripsi_sangat_baik', 'templat_deskripsi_baik', 'templat_deskripsi_cukup', 'templat_deskripsi_kurang', 'tema_warna',
+        'templat_deskripsi_sangat_baik', 'templat_deskripsi_baik', 'templat_deskripsi_cukup', 'templat_deskripsi_kurang',
       ];
       const update = {};
       for (const k of allowed) if (s[k] !== undefined) update[k] = s[k];
