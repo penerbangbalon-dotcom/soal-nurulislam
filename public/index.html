@@ -1,20 +1,12 @@
 <!DOCTYPE html>
-<html lang="id" data-tema="malam">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Absensi Digital — PKBM Nurul Islam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
-<script>(function () {
-  var T = ['malam', 'kuning', 'biru', 'hijau', 'ungu', 'teal', 'mawar'];
-  function pakai(t) { if (T.indexOf(t) >= 0) document.documentElement.setAttribute('data-tema', t); }
-  try { pakai(localStorage.getItem('tema_sekolah')); } catch (e) {}
-  fetch('/api/tema-publik').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-    if (d && T.indexOf(d.tema) >= 0) { pakai(d.tema); try { localStorage.setItem('tema_sekolah', d.tema); } catch (e) {} }
-  }).catch(function () {});
-})();</script>
 <style>
   body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
   .picker { max-width: 420px; width: 100%; padding: 20px; text-align: center; }

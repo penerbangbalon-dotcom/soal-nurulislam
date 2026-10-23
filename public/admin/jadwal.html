@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id" data-tema="malam">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jadwal Pelajaran — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 <style>
   .tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
@@ -81,7 +81,7 @@ slot.innerHTML = `
     <div class="field"><label>🖨️ Cetak jadwal pelajaran</label><select id="cetak-kelas"><option value="SEMUA">Semua kelas</option></select></div>
     <button class="btn btn-outline" id="btn-cetak-xlsx" type="button">📊 Excel</button>
     <button class="btn btn-outline" id="btn-cetak-pdf" type="button">📄 PDF</button>
-    <span class="muted" style="flex:1; min-width:200px;">Pilih satu kelas, seluruh jenjang (mis. Paket B kelas 7–9, Senin–Jumat), atau semua kelas. Mencetak jadwal yang <b>sudah tersimpan</b>. PDF: pada jendela cetak pilih tujuan <i>Simpan sebagai PDF</i>.</span>
+    <span class="muted" style="flex:1; min-width:200px;">Mencetak jadwal yang <b>sudah tersimpan</b>. PDF: pada jendela cetak pilih tujuan <i>Simpan sebagai PDF</i>.</span>
   </div>
   <div class="tabs no-print">
     <button class="btn btn-primary" data-tab="jadwal">📅 Jadwal Mapel per Kelas</button>
@@ -336,9 +336,9 @@ function kartuJam(p, t) {
         <label style="display:flex; gap:8px; align-items:center; margin-bottom:10px; font-size:.88rem;"><input type="checkbox" class="j-aktif" style="width:auto;" ${j.aktif ? 'checked' : ''} ${dis}> Pakai jam absen khusus Jumat</label>
         <div class="row">
           <div class="field"><label>Mulai Absen Datang</label><input type="time" class="j-mulai" value="${j.jam_masuk_mulai}" ${dis}></div>
-          <div class="field"><label>Akhir Absen Datang (QR tutup)</label><input type="time" class="j-selesai" value="${j.jam_masuk_selesai}" ${dis}></div>
+          <div class="field"><label>Akhir Absen Datang</label><input type="time" class="j-selesai" value="${j.jam_masuk_selesai}" ${dis}></div>
           <div class="field"><label>Jam Pulang</label><input type="time" class="j-pulang" value="${j.jam_pulang}" ${dis}></div>
-          <div class="field"><label>Toleransi terlambat (menit)</label><input type="number" class="j-tol" value="${j.toleransi_menit}" min="0" max="120" style="width:100px;" ${dis}></div>
+          <div class="field"><label>Toleransi (menit)</label><input type="number" class="j-tol" value="${j.toleransi_menit}" min="0" max="120" style="width:100px;" ${dis}></div>
           <button class="btn btn-primary btn-sm j-simpan" type="button" ${dis} style="margin-bottom:2px;">💾 Simpan Jam Absen Jumat</button>
         </div>
       </div>`;
@@ -759,23 +759,10 @@ document.getElementById('tab-gen').addEventListener('click', async (e) => {
 /* ============================================================
    CETAK JADWAL — EXCEL & PDF
    ============================================================ */
-/* Nilai pilihan cetak: "SEMUA" | "PROGRAM:PAKET_B" | "PROGRAM:PAKET_C" | grup kelas (mis. "7") */
-function daftarCetak(pilih) {
-  if (pilih === 'SEMUA') return state.kelas;
-  if (pilih.startsWith('PROGRAM:')) return state.kelas.filter((k) => k.program === pilih.slice(8));
-  return state.kelas.filter((k) => k.grup === pilih);
-}
 function isiPilihanCetak() {
   const sel = document.getElementById('cetak-kelas'); if (!sel) return;
   const nilai = sel.value || 'SEMUA';
-  const jenjang = [['PAKET_B', 'Seluruh Paket B (SMP/MTs)'], ['PAKET_C', 'Seluruh Paket C (SMA/MA)']]
-    .map(([p, label]) => {
-      const ks = state.kelas.filter((k) => k.program === p);
-      return ks.length ? `<option value="PROGRAM:${p}">${label} — kelas ${esc(ks.map((k) => k.grup).join(', '))} · Senin–Jumat</option>` : '';
-    }).join('');
-  sel.innerHTML = `<option value="SEMUA">Semua kelas (semua jenjang)</option>`
-    + (jenjang ? `<optgroup label="Per jenjang">${jenjang}</optgroup>` : '')
-    + `<optgroup label="Per kelas">${state.kelas.map((k) => `<option value="${esc(k.grup)}">Kelas ${esc(k.grup)} (${k.program === 'PAKET_B' ? 'Paket B' : 'Paket C'})</option>`).join('')}</optgroup>`;
+  sel.innerHTML = `<option value="SEMUA">Semua kelas</option>` + state.kelas.map((k) => `<option value="${esc(k.grup)}">Kelas ${esc(k.grup)} (${k.program === 'PAKET_B' ? 'Paket B' : 'Paket C'})</option>`).join('');
   sel.value = [...sel.options].some((o) => o.value === nilai) ? nilai : 'SEMUA';
 }
 
@@ -804,8 +791,7 @@ async function cetakPdf() {
     ]);
     const sekolah = (ident.data && ident.data.nama_sekolah) || 'PKBM Nurul Islam';
     const alamat = (ident.data && ident.data.alamat) || '';
-    const daftar = daftarCetak(kelas);
-    if (!daftar.length) { w.close(); toast('Belum ada kelas dengan siswa aktif untuk pilihan ini.', 'error'); return; }
+    const daftar = kelas === 'SEMUA' ? state.kelas : state.kelas.filter((k) => k.grup === kelas);
     const halaman = daftar.map((k) => {
       const jd = semua.jadwal[k.grup] || []; const rk = rekapJpHtml(k.program, jd);
       return `<section class="hal">
@@ -816,7 +802,7 @@ async function cetakPdf() {
       </section>`;
     }).join('');
     w.document.open();
-    w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Jadwal Pelajaran${kelas === 'SEMUA' ? '' : (kelas.startsWith('PROGRAM:') ? ' ' + (kelas.endsWith('PAKET_B') ? 'Paket B' : 'Paket C') : ' Kelas ' + esc(kelas))}</title>
+    w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Jadwal Pelajaran${kelas === 'SEMUA' ? '' : ' Kelas ' + esc(kelas)}</title>
       <style>
         @page { size: A4 landscape; margin: 12mm; }
         * { box-sizing: border-box; }

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id" data-tema="malam">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rekap Semester (Rapor) — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 <style>
   .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
@@ -209,10 +209,10 @@ let daftarSiswa = [];
 // Isi dropdown "Pilih Siswa"; bila tombol kelas dipilih, hanya siswa kelas itu yang ditampilkan.
 function isiDropdownSiswa() {
   const select = document.getElementById('f-siswa');
-  const kelas = kc.get(); // array nama kelas ([] = semua)
+  const kelas = kc.get();
   const dipilih = select.value;
-  const list = kelas.length ? daftarSiswa.filter((s) => kelas.includes(s.kelas)) : daftarSiswa;
-  select.innerHTML = `<option value="">${kelas.length ? `— Semua siswa kelas ${esc(kelas.join(' + '))} —` : '— Semua siswa (gunakan filter di bawah) —'}</option>` +
+  const list = kelas ? daftarSiswa.filter((s) => s.kelas === kelas) : daftarSiswa;
+  select.innerHTML = `<option value="">${kelas ? `— Semua siswa kelas ${esc(kelas)} —` : '— Semua siswa (gunakan filter di bawah) —'}</option>` +
     list.map((s) => `
       <option value="${s.id}">${esc(s.nama)} — ${esc(s.kelas)} (${esc(s.nisn || 'Tanpa NISN')})</option>
     `).join('');
@@ -220,7 +220,6 @@ function isiDropdownSiswa() {
 }
 
 const kc = KelasChips.pasang(document.getElementById('kelas-chips'), {
-  multi: true,
   onChange: () => { isiDropdownSiswa(); cari(); },
 });
 ['f-jenjang','f-program'].forEach((id) => {
@@ -266,7 +265,7 @@ function buildQuery() {
     return p.toString();
   }
 
-  if (kc.get().length) p.set('kelas', kc.get().join(','));
+  if (kc.get()) p.set('kelas', kc.get());
   const map = { 'f-jenjang': 'jenjang', 'f-program': 'program', 'f-nama': 'nama' };
   for (const [id, key] of Object.entries(map)) {
     const v = document.getElementById(id).value.trim();

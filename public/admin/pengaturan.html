@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id" data-tema="malam">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pengaturan Sekolah — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 <style>
   .ttd-preview {
@@ -122,9 +122,9 @@ function baris(sch) {
       <b>${sch.program.replace('_',' ')}</b>
       <div style="display:flex; gap:10px; margin-top:8px;">
         <div class="field" style="flex:1;"><label>Mulai Absen Datang</label><input type="time" class="j-mulai" value="${sch.jam_masuk_mulai.slice(0,5)}"></div>
-        <div class="field" style="flex:1;"><label>Akhir Absen Datang (QR tutup)</label><input type="time" class="j-selesai" value="${sch.jam_masuk_selesai.slice(0,5)}"></div>
+        <div class="field" style="flex:1;"><label>Akhir Absen Datang</label><input type="time" class="j-selesai" value="${sch.jam_masuk_selesai.slice(0,5)}"></div>
         <div class="field" style="flex:1;"><label>Jam Pulang</label><input type="time" class="j-pulang" value="${sch.jam_pulang.slice(0,5)}"></div>
-        <div class="field" style="flex:1;"><label>Toleransi terlambat (menit)</label><input type="number" class="j-toleransi" value="${sch.toleransi_menit}"></div>
+        <div class="field" style="flex:1;"><label>Toleransi (menit)</label><input type="number" class="j-toleransi" value="${sch.toleransi_menit}"></div>
       </div>
     </div>`;
 }

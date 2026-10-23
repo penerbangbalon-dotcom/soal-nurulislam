@@ -1,13 +1,3 @@
-// Warna aplikasi: pakai pilihan terakhir yang tersimpan, lalu sinkronkan dengan pengaturan sekolah.
-(function () {
-  var T = ['malam', 'kuning', 'biru', 'hijau', 'ungu', 'teal', 'mawar'];
-  function pakai(t) { if (T.indexOf(t) >= 0) document.documentElement.setAttribute('data-tema', t); }
-  try { pakai(localStorage.getItem('tema_sekolah')); } catch (e) {}
-  fetch('/api/tema-publik').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-    if (d && T.indexOf(d.tema) >= 0) { pakai(d.tema); try { localStorage.setItem('tema_sekolah', d.tema); } catch (e) {} }
-  }).catch(function () {});
-})();
-
 // ===== API client & helper kecil dipakai di semua halaman =====
 const API_BASE = '/api';
 

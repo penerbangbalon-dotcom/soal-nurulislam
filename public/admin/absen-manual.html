@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id" data-tema="malam">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Absen Manual — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
 <style>
   .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
@@ -15,13 +15,14 @@
   .selected-box { background:var(--primary-soft); border:1px solid var(--primary); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
   .tab-switch { display:flex; gap:8px; margin-bottom:14px; }
   .tab-switch button { flex:1; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:#fff; cursor:pointer; font-weight:600; }
-  .tab-switch button.active { background:var(--primary); color:var(--on-primary); border-color:var(--primary); }
+  .tab-switch button.active { background:var(--primary); color:#fff; border-color:var(--primary); }
   .baris-massal select, .baris-massal input { font-size:0.85rem; }
 </style>
 </head>
 <body>
 <script src="/assets/js/api.js"></script>
 <script src="/assets/js/admin-shell.js"></script>
+<script src="/assets/js/kelas-chips.js"></script>
 <script src="/assets/js/kelas-chips.js"></script>
 <script>
 const slot = renderAdminShell('/admin/absen-manual.html', 'Absen Manual');
@@ -103,7 +104,7 @@ slot.innerHTML = `
       <div id="kelas-chips-massal"></div>
       <div class="filters">
         <div class="field" style="margin:0;"><label>Tanggal</label><input type="date" id="k-tanggal"></div>
-        <div class="field" style="margin:0;"><label>Kelas</label><input type="text" id="k-kelas" placeholder="mis. 7 A, 7 B"></div>
+        <div class="field" style="margin:0;"><label>Kelas</label><input type="text" id="k-kelas" placeholder="mis. 1, 2A, dst."></div>
         <div class="field" style="margin:0;"><label>Jam Datang Default</label><input type="time" id="k-jam-default" value="07:00"></div>
         <button class="btn btn-primary" id="btn-muat-kelas" style="align-self:flex-end;">Muat Siswa</button>
       </div>
@@ -145,7 +146,7 @@ document.getElementById('k-tanggal').value = today;
 // ---------- Mode: Per Siswa ----------
 let siswaTerpilih = null;
 let searchTimer = null;
-const kcSatu = KelasChips.pasang(document.getElementById('kelas-chips-satu'), { multi: true, onChange: () => cariSiswa() }); // boleh pilih beberapa kelas
+const kcSatu = KelasChips.pasang(document.getElementById('kelas-chips-satu'), { onChange: () => cariSiswa() });
 
 function updateWrapJam() {
   const status = document.getElementById('m-status').value;
@@ -156,22 +157,19 @@ document.getElementById('m-status').addEventListener('change', updateWrapJam);
 async function cariSiswa() {
   const search = document.getElementById('f-search').value.trim();
   const tanpaHp = document.getElementById('f-tanpa-hp').checked;
-  const kelas = kcSatu.get(); // array nama kelas ([] = semua)
+  const kelas = kcSatu.get();
   const hasil = document.getElementById('hasil-cari');
-  if (!search && !tanpaHp && !kelas.length) { hasil.innerHTML = ''; return; }
+  if (!search && !tanpaHp && !kelas) { hasil.innerHTML = ''; return; }
   hasil.innerHTML = '<p>Mencari...</p>';
   try {
-    // Bila kelas dipilih, tampilkan seluruh siswa di kelas-kelas itu (maks. 300) supaya mudah dipilih satu per satu.
-    const p = new URLSearchParams({ per_page: kelas.length ? '300' : '15', status: 'AKTIF' });
+    // Bila kelas dipilih, tampilkan seluruh siswa di kelas itu (maks. 100) supaya mudah dipilih satu per satu.
+    const p = new URLSearchParams({ per_page: kelas ? '100' : '15', status: 'AKTIF' });
     if (search) p.set('search', search);
-    if (kelas.length) p.set('kelas', kelas.join(','));
+    if (kelas) p.set('kelas', kelas);
     if (tanpaHp) p.set('tanpa_hp', 'true');
     const data = await apiCall(`/admin-students?${p.toString()}`);
     if (!data.data.length) { hasil.innerHTML = '<p>Tidak ada siswa yang cocok.</p>'; return; }
-    // beberapa kelas: urutkan per kelas (sesuai urutan tombol), lalu nama
-    if (kelas.length > 1) data.data.sort((a, b) => (kelas.indexOf(a.kelas) - kelas.indexOf(b.kelas)) || String(a.nama).localeCompare(String(b.nama), 'id'));
-    const info = kelas.length > 1 ? `<p style="margin:0 0 8px; font-size:0.85rem; color:var(--ink-muted);">${data.data.length} siswa dari ${kelas.length} kelas (${kelas.join(', ')})${data.total > data.data.length ? ' — tampil ' + data.data.length + ' dari ' + data.total : ''}</p>` : '';
-    hasil.innerHTML = info + data.data.map((s) => `
+    hasil.innerHTML = data.data.map((s) => `
       <div class="siswa-pick" data-id="${s.id}" data-nama="${s.nama}" data-nisn="${s.nisn || ''}" data-kelas="${s.kelas}" data-program="${s.program}">
         <span>${s.nama} <span style="color:var(--ink-muted); font-size:0.82rem;">— ${s.kelas}, ${(s.program||'').replace('_',' ')}${s.hp ? '' : ' · <b style="color:var(--warning);">Tanpa HP</b>'}</span></span>
         <span class="btn btn-outline btn-sm">Pilih</span>
@@ -244,14 +242,12 @@ document.getElementById('form-manual').addEventListener('submit', async (e) => {
 
 // ---------- Mode: Per Kelas (Massal) ----------
 let siswaKelas = [];
-let kelasBanyak = false;
 
 // Tombol kelas pada mode massal: isi kolom Kelas lalu langsung muat daftar siswanya
 const kcMassal = KelasChips.pasang(document.getElementById('kelas-chips-massal'), {
-  multi: true, // boleh pilih beberapa kelas sekaligus (mis. 7 A dan 7 B)
-  onChange: (daftar) => {
-    document.getElementById('k-kelas').value = daftar.join(', ');
-    if (daftar.length) document.getElementById('btn-muat-kelas').click();
+  onChange: (k) => {
+    document.getElementById('k-kelas').value = k;
+    if (k) document.getElementById('btn-muat-kelas').click();
   },
 });
 
@@ -261,12 +257,8 @@ document.getElementById('btn-muat-kelas').onclick = async () => {
   if (!kelas) { toast('Isi nama kelas terlebih dahulu.', 'error'); return; }
   info.innerHTML = '<p>Memuat siswa...</p>';
   try {
-    const daftarKelas = kelas.split(',').map((k) => k.trim()).filter(Boolean);
-    const data = await apiCall(`/admin-students?kelas=${encodeURIComponent(daftarKelas.join(','))}&status=AKTIF&per_page=300`);
+    const data = await apiCall(`/admin-students?kelas=${encodeURIComponent(kelas)}&status=AKTIF&per_page=100`);
     siswaKelas = data.data;
-    // beberapa kelas: kelompokkan per kelas (sesuai urutan yang dipilih), lalu nama
-    if (daftarKelas.length > 1) siswaKelas.sort((a, b) => (daftarKelas.indexOf(a.kelas) - daftarKelas.indexOf(b.kelas)) || String(a.nama).localeCompare(String(b.nama), 'id'));
-    kelasBanyak = daftarKelas.length > 1;
     info.innerHTML = '';
     if (!siswaKelas.length) {
       document.getElementById('card-kelas').style.display = 'none';
@@ -282,7 +274,7 @@ function renderTabelKelas() {
   const jamDefault = document.getElementById('k-jam-default').value || '07:00';
   document.getElementById('tbody-kelas').innerHTML = siswaKelas.map((s, i) => `
     <tr class="baris-massal" data-idx="${i}">
-      <td>${s.nama}${s.hp ? '' : ' <b style="color:var(--warning); font-size:0.75rem;">(Tanpa HP)</b>'}${kelasBanyak ? ` <span style="color:var(--ink-muted); font-size:0.78rem;">— ${s.kelas}</span>` : ''}</td>
+      <td>${s.nama}${s.hp ? '' : ' <b style="color:var(--warning); font-size:0.75rem;">(Tanpa HP)</b>'}</td>
       <td>${s.nisn || '-'}</td>
       <td>${selectStatus(`st-${i}`, 'HADIR')}</td>
       <td><input type="time" id="jd-${i}" value="${jamDefault}" style="width:110px;"></td>
@@ -322,13 +314,7 @@ document.getElementById('btn-simpan-massal').onclick = async () => {
   const btn = document.getElementById('btn-simpan-massal');
   btn.disabled = true;
   try {
-    // Server menerima maksimum 100 siswa per pengiriman; beberapa kelas dikirim bertahap lalu digabung.
-    const kelasLabel = document.getElementById('k-kelas').value.trim();
-    const res = { total: 0, berhasil: 0, hasil: [] };
-    for (let i = 0; i < items.length; i += 100) {
-      const r = await apiCall('/admin-absen-manual-bulk', { method: 'POST', body: { tanggal, kelas: kelasLabel, items: items.slice(i, i + 100) } });
-      res.total += r.total; res.berhasil += r.berhasil; res.hasil.push(...r.hasil);
-    }
+    const res = await apiCall('/admin-absen-manual-bulk', { method: 'POST', body: { tanggal, kelas: document.getElementById('k-kelas').value.trim(), items } });
     const gagal = res.hasil.filter((h) => !h.ok);
     if (gagal.length) {
       toast(`${res.berhasil}/${res.total} berhasil disimpan. ${gagal.length} gagal: ${gagal.map((g) => g.error).join(', ')}`, 'error');
