@@ -155,7 +155,32 @@ const PETUNJUK_MODUL2 = `Aturan isi MODUL AJAR Template 2 (Pendidikan Kesetaraan
 
 // LKPD mengikuti format "Format LKPD Permendikdasmen 1/2026": Tujuan, Petunjuk, Kegiatan 1 Memahami (stimulus + pertanyaan),
 // Kegiatan 2 Mengaplikasi (tugas + tabel kerja), Kegiatan 3 Merefleksi, Penilaian oleh guru (rubrik). Dirakit oleh renderLkpd() di browser.
+// ---------- LKPD TEMPLATE 2: infografis (materi singkat + soal esai), dirakit oleh renderLkpd2() di browser ----------
+function susunPromptLkpd2(b) {
+  const p = b.pengaturan || {};
+  const n = Math.min(Math.max(parseInt(b.soal, 10) || 10, 5), 10);
+  const g = Math.min(Math.max(parseInt(b.gambar, 10) || 0, 0), 1);
+  const cp = b.cp && b.cp.deskripsi ? `\nCapaian Pembelajaran: ${String(b.cp.deskripsi).slice(0, 600)}` : '';
+  const tp = (b.tp || []).filter((t) => t && t.deskripsi).slice(0, 6).map((t) => `- ${String(t.deskripsi).slice(0, 200)}`).join('\n');
+  const gam = g
+    ? 'Sertakan tepat 1 gambar pada array "gambar" dengan "letak":"stimulus": ilustrasi kepala halaman yang menggambarkan topik. "deskripsi" ditulis dalam BAHASA INGGRIS, konkret (tokoh/objek, suasana, gaya ilustrasi edukasi ceria), TANPA teks di dalam gambar; "keterangan" kosong "".'
+    : 'Jangan sertakan gambar: "gambar" berupa array kosong [].';
+  const bentuk = `{"judul":"judul topik singkat","tagline":"semboyan penyemangat 5-9 kata","materi":[{"judul":"judul bagian","uraian":"1-2 kalimat penjelasan","label_poin":"judul daftar, mis. Contoh: (boleh kosong)","poin":["3-5 butir pendek, maks 9 kata"],"banding":null}],"tips":{"judul":"judul kotak sorot, mis. Ingat!","isi":"1-2 kalimat"},"kutipan":"kalimat penyemangat tentang topik, maks 18 kata","soal":["${n} soal esai berjenjang"],"gambar":[{"letak":"stimulus","deskripsi":"...","keterangan":""}]${b.kunci ? ',"kunci":["jawaban ringkas tiap soal, berurutan"]' : ''}}`;
+  return `Susun LKPD berbentuk INFOGRAFIS satu halaman (kiri: Materi Singkat, kanan: Soal Esai) untuk sekolah kesetaraan PKBM di Indonesia. Bahasa Indonesia sederhana, ringkas, menarik, menyebut peserta didik sebagai "kamu".
+Mata pelajaran: ${b.mapel}
+Program/Kelas: ${b.program || ''} Kelas ${b.kelas || ''}${b.fase ? ` (Fase ${b.fase})` : ''}, Semester ${b.semester || ''}
+Topik: ${b.topik}${cp}${tp ? `\nTujuan Pembelajaran:\n${tp}` : ''}
+Aturan isi:
+- "materi": 4-5 bagian ringkas yang berurutan (pengertian, unsur/contoh, sejarah/proses, dampak/tantangan, penerapan). Tiap "poin" harus singkat (maks 9 kata) agar muat. Bagian ke-4 boleh memakai "banding": {"a":{"judul":"Dampak positif:","poin":["2-3 butir"]},"b":{"judul":"Tantangan:","poin":["2-3 butir"]}}; bagian lain berisi "banding": null.
+- "soal": tepat ${n} soal esai, berjenjang dari mengingat/menjelaskan, menganalisis, sampai mengaitkan dengan kehidupan nyata; jawabannya tersirat dari materi pada infografis; satu kalimat tiap soal.
+- Fakta, tahun, dan nama harus benar; jangan mengarang data.
+- ${gam}
+${p.catatan_ai ? `Catatan khusus dari sekolah: ${String(p.catatan_ai).slice(0, 400)}\n` : ''}Tulis ringkas agar seluruh isi muat pada satu halaman. Balas HANYA satu JSON object berbentuk persis:
+${bentuk}`;
+}
+
 function susunPromptLkpd(b) {
+  if (parseInt(b.template, 10) === 2) return susunPromptLkpd2(b);
   const p = b.pengaturan || {};
   const n = Math.min(Math.max(parseInt(b.kegiatan, 10) || 3, 2), 5); // jumlah pertanyaan pemahaman
   const g = Math.min(Math.max(parseInt(b.gambar, 10) || 0, 0), 3);
@@ -210,6 +235,10 @@ function validModul2(d) {
 
 function valid(d, jenis, template) {
   if (jenis === 'modul' && parseInt(template, 10) === 2) return validModul2(d);
+  if (jenis === 'lkpd' && parseInt(template, 10) === 2) {
+    return d && Array.isArray(d.materi) && d.materi.length >= 3 && d.materi.every((m) => m && typeof m === 'object' && m.judul)
+      && Array.isArray(d.soal) && d.soal.length >= 3;
+  }
   if (jenis === 'lkpd') return d && Array.isArray(d.tujuan) && d.tujuan.length && d.stimulus && typeof d.stimulus === 'object' && Array.isArray(d.pertanyaan) && d.pertanyaan.length;
   if (jenis === 'modul') {
     return d && Array.isArray(d.tujuan) && d.tujuan.length && Array.isArray(d.kegiatan) && d.kegiatan.length

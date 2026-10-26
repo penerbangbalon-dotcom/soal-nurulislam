@@ -404,3 +404,10 @@ Menu **Generate Modul Ajar** kini punya pilihan **Template Modul Ajar**:
 - `netlify/functions/perangkat-ajar.js`: parameter `template` (1 | 2) pada jenis `modul`; struktur JSON, petunjuk, dan validasi khusus Template 2 (`bentukModul2`, `PETUNJUK_MODUL2`, `validModul2`). Template 1, RPP, dan LKPD tidak berubah.
 - `perangkat-ajar.js`: `renderModul2` baru; `opsiTemplate` & `bungkusWord` mengenali `data-tpl="modul2"`.
 - Pengaturan yang dihormati pada Template 2: "Sertakan Rubrik" (rubrik di Lampiran), kop sekolah, tanda tangan. Bagian Dimensi Profil Lulusan selalu tampil (bagian tetap template).
+
+## v29 — LKPD: pilihan Template 1 dan Template 2 (Infografis)
+Menu **Generate LKPD** kini punya kotak hijau **Pilih Template LKPD** di bagian atas form:
+- **Template 1** = LKPD Permendikdasmen 1/2026 yang sudah ada — tidak diubah.
+- **Template 2** = LKPD **infografis satu halaman A4 landscape**: kiri "Materi Singkat" (4-5 kotak bernomor, kotak banding hijau/merah muda, kotak sorot kuning, kutipan), kanan LKPD berisi kolom Nama/Kelas/Tanggal dan **Soal Esai** bernomor dengan garis jawaban (5/8/10 soal, pilihan "Jumlah Soal Esai"). Ilustrasi judul dibuat oleh pembuat gambar AI yang sudah ada ("Jumlah Gambar" 0 = tanpa gambar; Template 2 memakai 1 gambar). Opsi "Sertakan kunci jawaban" menambah halaman kunci untuk guru.
+- Hasil terbaik lewat **Cetak / PDF** (kertas otomatis landscape, latar warna ikut tercetak). Unduhan **Word** memakai halaman landscape dan tata letak tabel; sudut membulat tidak tampil di Word.
+- `netlify/functions/perangkat-ajar.js`: `susunPromptLkpd2` + validasi (parameter `template` 2 dan `soal`). `perangkat-ajar.js`: `renderLkpd2`; `opsiTemplate`/`bungkusWord`/`cetakHtml` mengenali `data-tpl="lkpd2"`; lebar gambar mengikuti `data-lebar`. Pilihan diingat di peramban (`pa_tpl_lkpd`).

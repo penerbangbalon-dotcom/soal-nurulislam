@@ -65,6 +65,12 @@
         : 'Modul Ajar lengkap mengikuti template: informasi umum, kesiapan peserta didik, desain pembelajaran, materi, langkah pembelajaran, LKPD, asesmen, diferensiasi, tindak lanjut, refleksi, dan sumber rujukan.'}
         Hasil bisa Anda <b>edit langsung</b> di layar, lalu simpan atau unduh ke Word.</p>
       <div class="card">
+        ${j === 'lkpd' ? `<div class="field" style="background:#F4F8F1;border:2px solid #548235;border-radius:10px;padding:10px 12px;margin-bottom:14px;"><label><b>Pilih Template LKPD</b></label><select id="pa-lkpd-tpl" onchange="localStorage.setItem('pa_tpl_lkpd', this.value)">
+          <option value="1">Template 1 — LKPD Permendikdasmen 1/2026 (Memahami, Mengaplikasi, Merefleksi + rubrik)</option>
+          <option value="2">Template 2 — Infografis A4 landscape (Materi Singkat + Soal Esai bergambar)</option>
+        </select>
+        <div class="grid3" style="margin-top:8px;"><div class="field"><label>Jumlah Soal Esai (khusus Template 2)</label><select id="pa-lkpd-soal"><option>5</option><option>8</option><option selected>10</option></select></div></div>
+        <p class="muted" style="margin:4px 0 0;">Template 2: "Jumlah Gambar" di bawah dipakai untuk ilustrasi judul (0 = tanpa gambar). Hasil terbaik lewat tombol Cetak / PDF.</p></div>` : ''}
         ${j === 'modul' ? `<div class="field" style="background:#F4F8F1;border:2px solid #548235;border-radius:10px;padding:10px 12px;margin-bottom:14px;"><label><b>Pilih Template Modul Ajar</b></label><select id="pa-modul-tpl" onchange="localStorage.setItem('pa_tpl_modul', this.value)">
           <option value="1">Template 1 — Modul Ajar Lengkap (informasi umum, desain, materi, langkah bertabel, LKPD, asesmen, diferensiasi, refleksi)</option>
           <option value="2">Template 2 — Pendidikan Kesetaraan / Pembelajaran Mendalam (Informasi Umum, Dimensi Profil Lulusan, Desain, Memahami-Mengaplikasi-Merefleksi, Asesmen, Lampiran)</option>
@@ -120,6 +126,7 @@
       $(`pa-${jenis}-guru`).value = localStorage.getItem('pa_guru') || '';
       $(`pa-${jenis}-nip`).value = localStorage.getItem('pa_nip') || '';
       if (jenis === 'modul') $('pa-modul-tpl').value = localStorage.getItem('pa_tpl_modul') === '2' ? '2' : '1';
+      if (jenis === 'lkpd') $('pa-lkpd-tpl').value = localStorage.getItem('pa_tpl_lkpd') === '2' ? '2' : '1';
     }
     // daftar mapel bisa berubah (dimuat belakangan)
     const sel = $(`pa-${jenis}-mapel`); const lama = sel.value;
@@ -177,16 +184,17 @@
       pertemuan: +$(`pa-${j}-pert`).value, jp: $(`pa-${j}-jp`) ? +$(`pa-${j}-jp`).value : 2, guru, nip, cp, tp, m,
     };
     const tplModul = j === 'modul' && $('pa-modul-tpl') && $('pa-modul-tpl').value === '2' ? 2 : 1;
+    const tplLkpd = j === 'lkpd' && $('pa-lkpd-tpl') && $('pa-lkpd-tpl').value === '2' ? 2 : 1;
     const btn = $(`pa-${j}-btn`); const st = $(`pa-${j}-status`);
     await muatLogo();
     btn.disabled = true; st.style.color = ''; st.textContent = `Menyusun ${NAMA[j]}... (sekitar 15-40 detik)`;
     try {
       const r = await panggilAI({ jenis: j, mapel: m.nama, program: m.program, kelas: m.kelas, fase, semester: ctx.semester, topik, cp, tp,
         pertemuan: ctx.pertemuan, jp: ctx.jp, pengaturan: PENG, ...(j === 'modul' ? { template: tplModul } : {}),
-        ...(j === 'lkpd' ? { kegiatan: ctx.pertemuan, gambar: +$(`pa-${j}-gbr`).value, kunci: $(`pa-${j}-kunci`).checked } : {}) });
-      const html = j === 'rpp' ? renderRpp(r.data, ctx) : j === 'modul' ? (tplModul === 2 ? renderModul2(r.data, ctx) : renderModul(r.data, ctx)) : renderLkpd(r.data, ctx);
+        ...(j === 'lkpd' ? { kegiatan: ctx.pertemuan, gambar: +$(`pa-${j}-gbr`).value, kunci: $(`pa-${j}-kunci`).checked, template: tplLkpd, soal: +$('pa-lkpd-soal').value } : {}) });
+      const html = j === 'rpp' ? renderRpp(r.data, ctx) : j === 'modul' ? (tplModul === 2 ? renderModul2(r.data, ctx) : renderModul(r.data, ctx)) : (tplLkpd === 2 ? renderLkpd2(r.data, ctx) : renderLkpd(r.data, ctx));
       $(`pa-${j}-hasil`).innerHTML = html; $(`pa-${j}-hasilbox`).classList.remove('hidden');
-      terakhir[j] = { judul: `${NAMA[j]} ${m.nama} Kelas ${m.kelas || ''} - ${topik}`.slice(0, 160), meta: { mapel: m.nama, kelas: m.kelas, semester: ctx.semester, topik, provider: r.provider, ...(j === 'modul' ? { template: tplModul } : {}) }, mapel_id: m.id, semester: ctx.semester, kelas: m.kelas };
+      terakhir[j] = { judul: `${NAMA[j]} ${m.nama} Kelas ${m.kelas || ''} - ${topik}`.slice(0, 160), meta: { mapel: m.nama, kelas: m.kelas, semester: ctx.semester, topik, provider: r.provider, ...(j === 'modul' ? { template: tplModul } : {}), ...(j === 'lkpd' ? { template: tplLkpd } : {}) }, mapel_id: m.id, semester: ctx.semester, kelas: m.kelas };
       st.textContent = `Selesai (${r.provider}). Periksa & edit bila perlu, lalu simpan/unduh.`;
       $(`pa-${j}-hasilbox`).scrollIntoView({ behavior: 'smooth' });
       if (j === 'lkpd') { terakhir[j].gambar = (Array.isArray(r.data.gambar) ? r.data.gambar : []).slice(0, 3).map((g) => (g && g.deskripsi) || null); pasangTombol(j); await buatGambar(j); }
@@ -410,6 +418,104 @@
 
     out.push(ttd(c).replace('<table style="', `<table style="font-family:${M_FONT};font-size:10pt;`));
     return `<div data-tpl="modul" data-tpl-hdr="${esc(hdr)}" data-tpl-ftr="${esc(ftr)}" style="font-family:${M_FONT};font-size:10pt;line-height:1.3;">${out.join('')}</div>`;
+  }
+
+  // ---------------- LKPD TEMPLATE 2: infografis A4 landscape (Materi Singkat + Soal Esai) ----------------
+  // Tata letak berbasis tabel agar tetap utuh di cetak/PDF browser maupun di Word; sudut membulat & latar hanya tampil di cetak/PDF.
+  const K2 = { navy: '#17398F', merah: '#D9345B', langit: '#E6F3FC', krem: '#FFF8E8', tepi: '#EBD9A8', pink: '#FDE8E8', hijau: '#E4F3DF', kuning: '#FFF0B3', garis: '#6FA8DC', biru: '#DDEFFB' };
+  const K2F = "'Segoe UI',Arial,Helvetica,sans-serif";
+  function renderLkpd2(d, c) {
+    const S = (typeof SEKOLAH !== 'undefined' && SEKOLAH) || {};
+    const lembaga = S.nama_lembaga || 'PKBM';
+    const mapel = S_(c.mapel).toUpperCase();
+    const topik = S_(d.judul || c.topik);
+    const pill = (t, bg, fg, ukuran) => `<span style="background:${bg};color:${fg || '#ffffff'};font-weight:bold;font-size:${ukuran || 10}pt;padding:2pt 9pt;border-radius:12pt;">${esc(t)}</span>`;
+    const badge = (n) => `<table cellspacing="0" cellpadding="0" style="border-collapse:separate;"><tr><td align="center" valign="middle" bgcolor="${K2.navy}" width="18" style="width:18pt;height:18pt;background:${K2.navy};color:#ffffff;font-weight:bold;font-size:9pt;text-align:center;border-radius:50%;font-family:${K2F};">${n}</td></tr></table>`;
+    const butir = (a, ukuran = 8) => (L(a).length ? `<ul style="margin:2pt 0 0 11pt;padding:0;font-size:${ukuran}pt;line-height:1.25;font-family:${K2F};">${L(a).map((x) => `<li style="margin:0 0 1pt;">${esc(x)}</li>`).join('')}</ul>` : '');
+    const kotak = (isi, bg, tepi, css = '') => `<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;margin:0 0 5pt;"><tr><td bgcolor="${bg}" style="background:${bg};border:1pt solid ${tepi};border-radius:8pt;padding:5pt 7pt;vertical-align:top;font-family:${K2F};${css}">${isi}</td></tr></table>`;
+
+    // ---- panel kiri: kotak materi ----
+    const materi = (Array.isArray(d.materi) ? d.materi : []).filter((m) => m && typeof m === 'object').slice(0, 5);
+    const kotakMateri = (m, i) => {
+      let h = `<table cellspacing="0" cellpadding="0"><tr><td valign="middle">${badge(i + 1)}</td><td style="padding-left:5pt;font-size:10.5pt;font-weight:bold;color:${K2.navy};font-family:${K2F};">${esc(m.judul)}</td></tr></table>`;
+      if (S_(m.uraian).trim()) h += `<p style="margin:3pt 0 2pt;font-size:8pt;line-height:1.3;font-family:${K2F};">${esc(m.uraian)}</p>`;
+      if (S_(m.label_poin).trim()) h += `<p style="margin:2pt 0 0;font-size:8pt;font-weight:bold;color:${K2.navy};font-family:${K2F};">${esc(m.label_poin)}</p>`;
+      h += butir(m.poin);
+      const bd = m.banding;
+      if (bd && bd.a && bd.b) {
+        h += `<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;margin:4pt 0 0;"><tr>
+          <td width="50%" valign="top" bgcolor="${K2.hijau}" style="background:${K2.hijau};border-radius:6pt;padding:3pt 5pt;font-family:${K2F};"><b style="font-size:8pt;color:#2E7D32;">${esc(bd.a.judul)}</b>${butir(bd.a.poin, 7.5)}</td>
+          <td width="2%">&nbsp;</td>
+          <td width="48%" valign="top" bgcolor="${K2.pink}" style="background:${K2.pink};border-radius:6pt;padding:3pt 5pt;font-family:${K2F};"><b style="font-size:8pt;color:${K2.merah};">${esc(bd.b.judul)}</b>${butir(bd.b.poin, 7.5)}</td></tr></table>`;
+      }
+      return kotak(h, '#ffffff', K2.tepi);
+    };
+    const kolKiri = materi.filter((_, i) => i % 2 === 0).map((m) => [m, materi.indexOf(m)]);
+    const kolKanan = materi.filter((_, i) => i % 2 === 1).map((m) => [m, materi.indexOf(m)]);
+    let kananExtra = '';
+    const tips = d.tips && typeof d.tips === 'object' ? d.tips : null;
+    if (tips && S_(tips.isi).trim()) kananExtra += kotak(`<b style="font-size:8.5pt;">${esc(tips.judul || 'Ingat!')}</b><br><span style="font-size:8pt;line-height:1.3;">${esc(tips.isi)}</span>`, K2.kuning, '#F2D44D');
+    if (S_(d.kutipan).trim()) kananExtra += `<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;margin:3pt 0 0;"><tr><td align="center" bgcolor="${K2.merah}" style="background:${K2.merah};border-radius:14pt;padding:8pt 12pt;color:#ffffff;font-style:italic;font-weight:bold;font-size:9.5pt;line-height:1.3;text-align:center;font-family:${K2F};">&ldquo;${esc(d.kutipan)}&rdquo;</td></tr></table>`;
+
+    const ukJudul = topik.length <= 26 ? 25 : topik.length <= 46 ? 20 : 16;
+    const gbr = (Array.isArray(d.gambar) ? d.gambar : []).find((g) => g && g.deskripsi);
+    const figur = gbr ? `<div data-gambar="0" data-lebar="170" style="text-align:center;"><div data-isi="1"><span style="color:#888;font-size:9pt;">⏳ Gambar sedang dibuat...</span></div><i data-ket="1" style="font-size:1pt;color:#ffffff;"></i></div>` : '';
+
+    const kiri = `
+      <table width="100%" cellspacing="0" cellpadding="0"><tr>
+        <td valign="top" width="${gbr ? '58%' : '100%'}" style="font-family:${K2F};">
+          <p style="margin:0 0 4pt;">${pill(mapel, K2.merah, '#fff', 15)} ${pill(`Kelas ${S_(c.kelas)}${c.fase ? ' · Fase ' + c.fase : ''}`, K2.navy, '#fff', 11)}</p>
+          <p style="margin:0 0 3pt;font-size:${ukJudul}pt;line-height:1.05;font-weight:bold;color:${K2.navy};">${esc(topik)}</p>
+          ${S_(d.tagline).trim() ? `<p style="margin:0;font-size:10pt;font-style:italic;color:${K2.navy};">${esc(d.tagline)}</p>` : ''}
+        </td>
+        ${gbr ? `<td valign="middle" align="center" width="42%">${figur}</td>` : ''}
+      </tr></table>
+      <p style="margin:7pt 0 4pt;">${pill('Materi Singkat', K2.merah, '#fff', 14)}</p>
+      <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;"><tr><td bgcolor="${K2.krem}" style="background:${K2.krem};border-radius:10pt;padding:6pt;">
+        <table width="100%" cellspacing="0" cellpadding="0"><tr>
+          <td width="50%" valign="top" style="padding-right:3pt;">${kolKiri.map(([m, i]) => kotakMateri(m, i)).join('')}</td>
+          <td width="50%" valign="top" style="padding-left:3pt;">${kolKanan.map(([m, i]) => kotakMateri(m, i)).join('')}${kananExtra}</td>
+        </tr></table>
+      </td></tr></table>`;
+
+    // ---- panel kanan: LKPD + soal esai ----
+    const soal = L(d.soal).slice(0, 10);
+    const baris = soal.length <= 6 ? 3 : soal.length <= 8 ? 2 : 2;
+    const garis = Array.from({ length: baris }, () => `<tr><td style="border-bottom:0.75pt solid ${K2.garis};height:10pt;font-size:5pt;line-height:10pt;">&nbsp;</td></tr>`).join('');
+    const isiSoal = soal.map((q, i) => `<tr><td valign="top" width="24" style="padding:0 0 2pt;">${badge(i + 1)}</td>
+      <td valign="top" style="padding:1pt 0 2pt 4pt;font-family:${K2F};"><p style="margin:0;font-size:8pt;line-height:1.25;">${esc(q)}</p>
+      <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">${garis}</table></td></tr>`).join('');
+    const isian = (t) => `<tr><td style="font-size:8.5pt;font-family:${K2F};padding:1pt 0;">${t}</td><td style="font-size:8.5pt;padding:1pt 4pt;">:</td><td width="110" style="border-bottom:0.75pt solid ${K2.garis};font-size:8.5pt;">&nbsp;</td></tr>`;
+    const kanan = `
+      <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;"><tr><td bgcolor="#ffffff" style="background:#ffffff;border:1pt solid ${K2.biru};border-radius:10pt;padding:7pt 9pt;vertical-align:top;">
+        <table width="100%" cellspacing="0" cellpadding="0"><tr>
+          <td valign="top" style="font-family:${K2F};">
+            <p style="margin:0 0 3pt;font-size:17pt;font-weight:bold;color:${K2.navy};">LKPD ${esc(mapel)}</p>
+            <p style="margin:0;">${pill(topik.length > 40 ? topik.slice(0, 40) + '…' : topik, K2.navy, '#fff', 9.5)}</p>
+          </td>
+          <td valign="top" width="150"><table cellspacing="0" cellpadding="0" style="border-collapse:collapse;">${isian('Nama')}${isian('Kelas')}${isian('Tanggal')}</table></td>
+        </tr></table>
+        <p style="margin:7pt 0 3pt;">${pill('Soal Essay', K2.navy, '#fff', 13)}</p>
+        <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;margin:0 0 5pt;"><tr><td bgcolor="${K2.biru}" style="background:${K2.biru};border-radius:8pt;padding:4pt 8pt;font-family:${K2F};font-size:8.5pt;font-weight:bold;color:${K2.navy};">Jawablah pertanyaan berikut dengan jelas dan tepat!</td></tr></table>
+        <table width="100%" cellspacing="0" cellpadding="0">${isiSoal}</table>
+      </td></tr></table>`;
+
+    const pita = `<table width="100%" cellspacing="0" cellpadding="0" style="margin:5pt 0 0;"><tr><td bgcolor="${K2.merah}" height="4" style="background:${K2.merah};height:4pt;font-size:1pt;line-height:4pt;">&nbsp;</td></tr><tr><td align="center" bgcolor="${K2.navy}" style="background:${K2.navy};color:#ffffff;font-size:6.5pt;padding:1.5pt 0;font-family:${K2F};">${esc(lembaga)} · ${esc(S_(c.mapel))} · Semester ${esc(S_(c.semester))}${PENG.tahun_ajaran ? ' · TA ' + esc(PENG.tahun_ajaran) : ''}</td></tr></table>`;
+
+    let kunci = '';
+    if (L(d.kunci).length) {
+      kunci = `<div style="page-break-before:always;font-family:${K2F};"><p style="margin:0 0 6pt;">${pill('Kunci Jawaban (Khusus Guru)', K2.merah, '#fff', 14)}</p>
+        <p style="margin:0 0 5pt;font-size:8.5pt;font-style:italic;color:#555;">Bagian ini untuk guru; hapus sebelum dibagikan kepada peserta didik.</p>
+        <ol style="margin:0 0 0 18pt;padding:0;font-size:9.5pt;line-height:1.4;">${L(d.kunci).map((k) => `<li style="margin:0 0 3pt;">${esc(k)}</li>`).join('')}</ol></div>`;
+    }
+
+    return `<div data-tpl="lkpd2" data-tpl-hdr="" data-tpl-ftr="" style="font-family:${K2F};font-size:9pt;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+      <table width="100%" cellspacing="0" cellpadding="0" bgcolor="${K2.langit}" style="background:${K2.langit};border-collapse:separate;"><tr><td style="padding:6pt;">
+        <table width="100%" cellspacing="0" cellpadding="0"><tr>
+          <td width="54%" valign="top" style="padding-right:8pt;">${kiri}</td>
+          <td width="46%" valign="top">${kanan}</td>
+        </tr></table>${pita}
+      </td></tr></table>${kunci}</div>`;
   }
 
   // ---------------- Modul Ajar TEMPLATE 2: "Template Modul Ajar - Pendidikan Kesetaraan (Paket A/B/C)" ----------------
@@ -688,7 +794,7 @@
   }
   function isiGambar(el, g) {
     rapikanFigure(el);
-    const lebar = Math.min(g.w, 420);
+    const lebar = Math.min(g.w, +el.getAttribute('data-lebar') || 420);
     el.querySelector('[data-isi]').innerHTML = `<img src="${g.uri}" width="${lebar}" height="${Math.round(lebar * g.h / g.w)}" style="max-width:100%;border:1px solid #ccc;">`;
   }
   // pastikan figure punya struktur [data-isi] + keterangan (juga untuk dokumen lama di riwayat)
@@ -758,20 +864,22 @@
   // ---------------- Unduh / Cetak / Simpan ----------------
   // Modul Ajar bertemplate menandai dokumennya dengan data-tpl="modul" (+ teks header/footer) -> Word memakai Arial, margin template, header & footer
   function opsiTemplate(html) {
-    const m = /data-tpl="(modul2|modul|lkpd)"\s+data-tpl-hdr="([^"]*)"\s+data-tpl-ftr="([^"]*)"(\s+data-tpl-hal="1")?/.exec(html || '');
-    return m ? { v2: m[1] === 'modul2', hdr: m[2], ftr: m[3], hal: !!m[4] } : null;
+    const m = /data-tpl="(lkpd2|modul2|modul|lkpd)"\s+data-tpl-hdr="([^"]*)"\s+data-tpl-ftr="([^"]*)"(\s+data-tpl-hal="1")?/.exec(html || '');
+    return m ? { v2: m[1] === 'modul2', land: m[1] === 'lkpd2', hdr: m[2], ftr: m[3], hal: !!m[4] } : null;
   }
   function bungkusWord(html, judul, tpl) {
     const v2 = !!(tpl && tpl.v2); // Template 2: Times New Roman, margin & header/footer mengikuti template Pendidikan Kesetaraan
     const fHF = v2 ? "'Times New Roman',serif" : 'Arial,sans-serif';
     const hal = tpl && tpl.hal ? `${tpl.ftr ? ' • ' : ''}Halaman <span style='mso-field-code:" PAGE "'><span style='mso-no-proof:yes'>1</span></span>` : '';
-    const hf = tpl ? `<div style='mso-element:header' id="h1"><p style="text-align:right;font-family:${fHF};font-size:8pt;color:${v2 ? '#808080' : '#6E6E6E'};margin:0;">${tpl.hdr}</p></div>
+    const land = !!(tpl && tpl.land); // LKPD infografis: A4 landscape tanpa header/footer
+    const hf = tpl && !land ? `<div style='mso-element:header' id="h1"><p style="text-align:right;font-family:${fHF};font-size:8pt;color:${v2 ? '#808080' : '#6E6E6E'};margin:0;">${tpl.hdr}</p></div>
       <div style='mso-element:footer' id="f1"><p style="text-align:center;font-family:${fHF};font-size:8pt;${v2 ? '' : 'font-style:italic;'}color:${v2 ? '#808080' : '#6E6E6E'};margin:0;">${tpl.ftr}${hal}</p></div>` : '';
-    const halaman = tpl
+    const halaman = land ? '@page Section1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:22pt 24pt 22pt 24pt;}'
+      : tpl
       ? (v2 ? '@page Section1{size:595.3pt 841.9pt;margin:50pt 55pt 50pt 55pt;mso-header-margin:35.4pt;mso-footer-margin:35.4pt;mso-header:h1;mso-footer:f1;}'
         : '@page Section1{size:595.3pt 841.9pt;margin:65.2pt 65.2pt 65.2pt 76.6pt;mso-header-margin:36pt;mso-footer-margin:36pt;mso-header:h1;mso-footer:f1;}')
       : '@page Section1{size:595.3pt 841.9pt;margin:56.7pt 56.7pt 56.7pt 70.9pt;}';
-    const huruf = tpl ? (v2 ? "font-family:'Times New Roman',Times,serif;font-size:11pt;" : "font-family:Arial,Helvetica,sans-serif;font-size:10pt;") : "font-family:'Times New Roman',serif;font-size:12pt;";
+    const huruf = land ? "font-family:'Segoe UI',Arial,sans-serif;font-size:9pt;" : tpl ? (v2 ? "font-family:'Times New Roman',Times,serif;font-size:11pt;" : "font-family:Arial,Helvetica,sans-serif;font-size:10pt;") : "font-family:'Times New Roman',serif;font-size:12pt;";
     return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc(judul)}</title>
       <style>${halaman} div.Section1{page:Section1;} body{${huruf}} table{border-collapse:collapse;} p{margin:0 0 4px;}</style></head>
       <body><div class="Section1">${html}</div>${hf}</body></html>`;
@@ -802,7 +910,8 @@
   function cetakHtml(html, judul) {
     const w = window.open('', '_blank'); if (!w) { alert('Izinkan pop-up untuk mencetak.'); return; }
     // header/footer Word tidak ikut dicetak dari browser (tpl = null); gaya Arial tetap terbawa dari dokumennya
-    w.document.write(bungkusWord(html, judul).replace('</style>', '@page{size:A4;margin:2cm}</style>')); w.document.close(); w.focus(); setTimeout(() => w.print(), 400);
+    const t = opsiTemplate(html); const kertas = t && t.land ? '@page{size:A4 landscape;margin:7mm}@page Section1{size:A4 landscape;margin:7mm}body{margin:0;}html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}' : '@page{size:A4;margin:2cm}';
+    w.document.write(bungkusWord(html, judul).replace('</style>', kertas + '</style>')); w.document.close(); w.focus(); setTimeout(() => w.print(), 400);
   }
   const hasilHtml = (j) => { const c = $(`pa-${j}-hasil`).cloneNode(true); c.querySelectorAll('[data-ui]').forEach((x) => x.remove()); return c.innerHTML; };
   const unduh = (j) => unduhHtml(hasilHtml(j), (terakhir[j] || {}).judul || NAMA[j]);
