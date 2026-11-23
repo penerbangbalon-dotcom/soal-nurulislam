@@ -726,6 +726,7 @@ main{flex:1;min-width:0;max-width:1240px;margin:0 auto;padding:16px 20px 40px}
         <select id="daftar-f-ta" onchange="renderDaftarPaket(true)"><option value="">Semua tahun ajaran</option></select>
         <select id="daftar-urut" onchange="renderDaftarPaket(true)" title="Urutkan"><option value="baru">Urut: Terbaru dibuat</option><option value="judul">Urut: Judul A-Z</option><option value="mapel">Urut: Mata pelajaran A-Z</option><option value="kelas">Urut: Kelas, lalu mapel</option><option value="status">Urut: Status (siap dulu)</option></select>
         <button class="btn outline" style="padding:6px 12px;" onclick="resetDaftarPaket()">Reset</button>
+        <button class="btn gold" style="padding:6px 12px;" onclick="arsipkanMassal()" title="Arsipkan semua paket berstatus Ditutup/Draft yang sedang tampil sesuai filter">Arsipkan yang Tampil</button>
         <button class="btn outline" style="padding:6px 12px;" onclick="toggleTipsCari('daftar-tips')" title="Cara memakai pencarian">? Tips</button>
       </div>
       <div id="daftar-tips" class="card hidden" style="font-size:13px;line-height:1.7;padding:10px 14px;"></div>
@@ -1083,7 +1084,7 @@ main{flex:1;min-width:0;max-width:1240px;margin:0 auto;padding:16px 20px 40px}
           </div>
           <p class="muted" style="margin-top:0;">Laporan hanya menampilkan nilai dari paket ujian yang <b>sudah dikerjakan siswa</b> dan paket
             yang masih <b>aktif tetapi belum dikerjakan</b> (muncul sebagai &quot;Perlu melapor ke wali kelas&quot;). Mata pelajaran yang
-            belum punya paket ujian, serta paket draft atau ditutup yang belum dikerjakan siswa, tidak ditampilkan. Paket yang sudah <b>diarsipkan</b> tidak ikut sama sekali.</p>
+            belum punya paket ujian, serta paket draft atau ditutup yang belum dikerjakan siswa, tidak ditampilkan. Paket yang sudah <b>diarsipkan</b> tetap ikut: nilainya tetap tampil dan tetap dihitung di rapor.</p>
           <table>
             <thead><tr><th>Mata Pelajaran</th><th>Jenis</th><th>Judul Ujian</th><th>Semester / T.A.</th><th>Nilai</th><th>Predikat</th><th></th></tr></thead>
             <tbody id="lap-body"></tbody>
@@ -5007,11 +5008,11 @@ async function hapusPaket(id){
   if(jmlHasil>0){
     // Paket yang sudah ada hasilnya TIDAK dihapus sungguhan: diarsipkan (disembunyikan & ditutup)
     // supaya semua nilai tetap utuh di Hasil Ujian, Laporan Siswa, Rapor, dan Arsip Nilai.
-    if(!confirm(`Paket ini sudah punya ${jmlHasil} hasil ujian siswa.\n\nPaket TIDAK akan dihapus permanen. Paket akan diarsipkan: disembunyikan dari daftar dan ditutup untuk siswa, sedangkan SEMUA NILAI tetap tersimpan di Hasil Ujian, tetapi TIDAK ditampilkan lagi di Laporan Siswa dan Rapor. Paket bisa dipulihkan atau dihapus permanen dari daftar (centang \"Tampilkan paket yang sudah diarsipkan\").\n\nArsipkan paket ini?`)) return;
+    if(!confirm(`Paket ini sudah punya ${jmlHasil} hasil ujian siswa.\n\nPaket TIDAK akan dihapus permanen. Paket akan diarsipkan: disembunyikan dari daftar dan ditutup untuk siswa, sedangkan SEMUA NILAI tetap tersimpan dan tetap tampil di Hasil Ujian, Laporan Siswa, Rapor, dan Arsip Nilai.\n\nPaket bisa dipulihkan atau dihapus permanen dari daftar (centang \"Tampilkan paket yang sudah diarsipkan\").\n\nArsipkan paket ini?`)) return;
     const { error: eArsip } = await supa.from('paket_ujian').update({ diarsipkan:true, diarsipkan_pada:new Date().toISOString(), status:'ditutup' }).eq('id', id);
     if(eArsip) return alert('Gagal mengarsipkan: '+eArsip.message);
     if(editingPaketId === id) batalEditPaket();
-    alert('Paket diarsipkan. Nilai siswa tetap tersimpan di Hasil Ujian, tetapi tidak muncul lagi di Laporan Siswa/Rapor.');
+    alert('Paket diarsipkan. Nilai siswa tetap tersimpan dan tetap tampil di Laporan Siswa, Rapor, dan Hasil Ujian.');
     loadDaftarPaket();
     return;
   } else if(!confirm('Hapus paket ujian ini? Semua data hasil ujian siswa untuk paket ini (kalau ada) juga akan ikut terhapus.')) return;
@@ -5477,6 +5478,7 @@ function renderDaftarPaket(reset){
           : p.status==='siap'
           ? `<button class="btn danger" style="padding:5px 10px;" onclick="tutupPaket('${p.id}')">Tutup</button>`
           : `<button class="btn gold" style="padding:5px 10px;" onclick="aktifkanKembaliPaket('${p.id}')">Aktifkan Kembali</button>`}
+        ${p.status!=='siap' ? `<button class="btn outline" style="padding:5px 10px;" title="Sembunyikan dari daftar. Nilai tetap masuk laporan, rapor, dan nilai akhir." onclick="arsipkanPaket('${p.id}')">Arsipkan</button>` : ''}
         <button class="btn danger" style="padding:5px 10px;" onclick="hapusPaket('${p.id}')">Hapus</button>`}
       </td>
     </tr>`; }).join('');
@@ -5518,6 +5520,35 @@ async function hapusPermanenPaket(id){
   if(error) return alert('Gagal menghapus paket: '+error.message);
   if(editingPaketId === id) batalEditPaket();
   alert('Paket dihapus permanen.');
+  loadDaftarPaket();
+}
+// ARSIPKAN = sembunyikan paket dari Daftar & Cetak (dan paket ditutup untuk siswa). Nilai TIDAK berubah:
+// tetap tampil di Laporan Siswa, Rapor, Leger, Rekap Nilai, dan tetap dihitung di syarat/akumulasi nilai akhir.
+async function arsipkanPaket(id){
+  const p = daftarPaketData.find(x=>x.id===id);
+  if(!p) return;
+  if(p.status==='siap') return alert('Paket masih online. Tutup dulu paketnya, baru diarsipkan.');
+  if(!confirm(`Arsipkan paket "${p.judul}" (${p.kelas||'-'} / ${p.program||'-'})?\n\nPaket disembunyikan dari Daftar & Cetak. Nilai siswa tetap tampil di Laporan Siswa dan Rapor, dan tetap dihitung di nilai akhir.\n\nBisa dipulihkan kapan saja lewat centang "Tampilkan paket yang sudah diarsipkan".`)) return;
+  const { error } = await supa.from('paket_ujian').update({ diarsipkan:true, diarsipkan_pada:new Date().toISOString(), status:'ditutup' }).eq('id', id);
+  if(error) return alert('Gagal mengarsipkan: '+error.message);
+  if(editingPaketId === id) batalEditPaket();
+  loadDaftarPaket();
+}
+// Arsipkan semua paket (draft/ditutup) yang sedang tampil sesuai filter. Wajib ada filter supaya tidak mengarsipkan semuanya tanpa sengaja.
+async function arsipkanMassal(){
+  const { hasil, parsed } = saringDaftarPaket(false);
+  const adaFilter = !parsed.kosong || daftarStatus || ['daftar-f-kelas','daftar-f-jenis','daftar-f-ta'].some(id=>document.getElementById(id).value);
+  if(!adaFilter) return alert('Pilih filter dulu, misalnya Jenis = UTS dan Tahun Ajaran berjalan, supaya yang diarsipkan tepat sasaran.');
+  const target = hasil.filter(p=>!p.diarsipkan && p.status!=='siap');
+  const online = hasil.filter(p=>!p.diarsipkan && p.status==='siap').length;
+  if(!target.length) return alert('Tidak ada paket berstatus Ditutup/Draft pada tampilan ini.' + (online ? `\n(${online} paket masih online dan dilewati; tutup dulu bila ingin diarsipkan.)` : ''));
+  const contoh = target.slice(0,8).map(p=>`- ${p.judul} (${p.kelas||'-'})`).join('\n') + (target.length>8 ? `\n... dan ${target.length-8} paket lainnya` : '');
+  if(!confirm(`Arsipkan ${target.length} paket berikut?\n\n${contoh}\n\n${online ? `${online} paket yang masih online dilewati.\n\n` : ''}Nilai siswa tetap tampil di Laporan Siswa dan Rapor, dan tetap dihitung di nilai akhir. Paket bisa dipulihkan kapan saja.`)) return;
+  const ids = target.map(p=>p.id), waktu = new Date().toISOString();
+  for(let i=0;i<ids.length;i+=100){
+    const { error } = await supa.from('paket_ujian').update({ diarsipkan:true, diarsipkan_pada:waktu, status:'ditutup' }).in('id', ids.slice(i,i+100));
+    if(error){ alert('Gagal mengarsipkan sebagian paket: '+error.message); break; }
+  }
   loadDaftarPaket();
 }
 async function pulihkanPaket(id){
@@ -7309,7 +7340,7 @@ async function tampilkanLaporanKelas(){
     .in('siswa_nisn', nisnKelas).order('id'));
   if(error){ kosong.textContent = 'Gagal memuat: '+error.message; return; }
   const per = new Map();
-  (data||[]).filter(r=>r.waktu_selesai && r.paket_ujian && !r.paket_ujian.diarsipkan && r.paket_ujian.jenis_ujian!=='Ulangan Harian' && r.paket_ujian.jenis_ujian!=='Remedial')
+  (data||[]).filter(r=>r.waktu_selesai && r.paket_ujian && r.paket_ujian.jenis_ujian!=='Ulangan Harian' && r.paket_ujian.jenis_ujian!=='Remedial')
     .forEach(r=>{ const a = per.get(r.siswa_nisn) || []; a.push(Number(r.total_skor)||0); per.set(r.siswa_nisn, a); });
   kosong.classList.add('hidden'); box.classList.remove('hidden');
   box.innerHTML = `<div class="card" style="overflow-x:auto;"><h3 style="margin-bottom:2px;">Semua siswa Kelas ${escapeHtml(kelas)}</h3>
@@ -7353,10 +7384,11 @@ async function tampilkanLaporanSiswa(){
 
   // Kalau paket ujiannya sudah dihapus, sesi ikut tidak relevan lagi — abaikan.
   // Ulangan Harian tidak ikut Laporan Siswa/Rapor (ditampilkan di Rekap Nilai Siswa, Leger, dan Transkrip).
-  // Paket yang sudah DIARSIPKAN juga tidak ikut (nilainya tetap ada di menu Hasil Ujian & Arsip).
+  // Paket yang sudah DIARSIPKAN tetap ikut: arsip hanya menyembunyikan paket dari Daftar & Cetak,
+  // nilainya tetap tampil di Laporan Siswa, Rapor, Leger, dan akumulasi nilai akhir.
   // Ulangan Harian ikut dimuat supaya bisa dipilih lewat filter Jenis Ujian (mis. cetak kartu UH),
   // tetapi TIDAK tampil saat filter "Semua Jenis Ujian" (lihat ambilBarisTerfilter) agar Rapor tetap UTS/UAS saja.
-  const sesiValid = (sesiData||[]).filter(s=>s.paket_ujian && !s.paket_ujian.diarsipkan && s.paket_ujian.jenis_ujian!=='Remedial');  // remedial online dihitung lewat Leger/Transkrip, bukan baris ujian
+  const sesiValid = (sesiData||[]).filter(s=>s.paket_ujian && s.paket_ujian.jenis_ujian!=='Remedial');  // remedial online dihitung lewat Leger/Transkrip, bukan baris ujian
   // Paket ujian sesuai kelas & program siswa saat ini yang BELUM ia kerjakan
   // (UTS ataupun UAS) tetap dimasukkan sebagai baris "Tidak Mengerjakan".
   const paketRelevanFormal = (paketRelevan||[]);

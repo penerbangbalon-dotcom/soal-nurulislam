@@ -581,7 +581,7 @@ async function hitungSyaratRapor({ ta, smt, siswaList }) {
   let paket = [];
   const jur = new Map(), peng = new Map(), sesiSelesai = new Set();
   if (cfg.ujian.aktif && cfg.ujian.jenis.length) {
-    const semuaPaket = await sbSemua('paket_ujian?diarsipkan=eq.false&status=in.(siap,ditutup)&select=id,judul,jenis_ujian,kelas,program,semester,tahun_ajaran,mata_pelajaran(nama)', 'id');
+    const semuaPaket = await sbSemua('paket_ujian?status=in.(siap,ditutup)&select=id,judul,jenis_ujian,kelas,program,semester,tahun_ajaran,mata_pelajaran(nama)', 'id');
     paket = semuaPaket.filter((p) => {
       if (!cfg.ujian.jenis.includes(p.jenis_ujian) || !kelasProg.has(`${p.program}|${p.kelas}`)) return false;
       const n = pisahSmtTa(p.semester, p.tahun_ajaran);
