@@ -29,7 +29,8 @@ async function sb(path, opts = {}) {
     },
   });
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch (e) { data = { message: text.slice(0, 200) }; } }
   if (!res.ok) throw new Error((data && (data.message || data.error)) || `Supabase error (${res.status})`);
   return data;
 }
@@ -185,7 +186,8 @@ async function authAdmin(path, opts = {}) {
     headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
   });
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch (e) { data = { message: text.slice(0, 200) }; } }
   if (!res.ok) throw new Error((data && (data.msg || data.message || data.error_description || data.error)) || `Supabase error (${res.status})`);
   return data;
 }

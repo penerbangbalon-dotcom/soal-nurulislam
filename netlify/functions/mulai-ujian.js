@@ -32,7 +32,8 @@ async function sb(path, opts = {}) {
     headers: { ...headers(), ...(opts.headers || {}) },
   });
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch (e) { data = { message: text.slice(0, 200) }; } }
   if (!res.ok) throw new Error((data && (data.message || data.error)) || `Supabase error (${res.status})`);
   return data;
 }
@@ -52,7 +53,10 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Body tidak valid' }) };
   }
 
-  const { kode_akses, nisn, pin } = body;
+  // Paksa jadi teks (NISN kadang terkirim sebagai angka) dan samakan huruf besar kode akses.
+  const kode_akses = String(body.kode_akses == null ? '' : body.kode_akses).trim().toUpperCase();
+  const nisn = String(body.nisn == null ? '' : body.nisn).trim();
+  const pin = body.pin == null ? '' : String(body.pin);
   if (!kode_akses || !nisn) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Kode akses dan NISN wajib diisi' }) };
   }

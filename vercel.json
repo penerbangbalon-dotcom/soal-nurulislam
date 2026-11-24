@@ -3,9 +3,23 @@
   "outputDirectory": ".",
   "functions": {
     "api/*.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "netlify/functions/_lib/logo-pkbm.png"
     }
   },
+  "redirects": [
+    { "source": "/data/:path*", "destination": "/", "permanent": false },
+    { "source": "/supabase/:path*", "destination": "/", "permanent": false },
+    { "source": "/scripts/:path*", "destination": "/", "permanent": false },
+    { "source": "/netlify/:path*", "destination": "/", "permanent": false },
+    { "source": "/generate-soal.js", "destination": "/", "permanent": false },
+    { "source": "/heartbeat.js", "destination": "/", "permanent": false },
+    { "source": "/kelola-user.js", "destination": "/", "permanent": false },
+    { "source": "/mulai-ujian.js", "destination": "/", "permanent": false },
+    { "source": "/submit-ujian.js", "destination": "/", "permanent": false },
+    { "source": "/sudahi-ujian.js", "destination": "/", "permanent": false },
+    { "source": "/ujian-core.js", "destination": "/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/admin/:path*", "destination": "/public/admin/:path*" },
     { "source": "/siswa/:path*", "destination": "/public/siswa/:path*" },

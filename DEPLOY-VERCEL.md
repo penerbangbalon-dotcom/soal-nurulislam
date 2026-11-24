@@ -94,3 +94,10 @@ Instalasi baru: jalankan berurutan. Instalasi lama: jalankan hanya yang belum pe
 18. `migrasi-v22-rapor-mapel-sembunyi.sql`
 
 Catatan: jumlah fungsi di folder `api/` saat ini 11 (batas paket gratis Vercel 12). Tambahkan aksi baru ke fungsi yang ada, jangan membuat file baru di `api/`.
+
+
+## 8. Keamanan berkas (penting)
+- Folder `data/`, `supabase/`, dan `scripts/` berisi data pribadi siswa (nama, NISN, tanggal lahir, alamat, HP, hash password). Karena `outputDirectory` adalah `.`, berkas di folder utama bisa diunduh publik bila tidak dikecualikan. Berkas `.vercelignore` dan bagian `redirects` di `vercel.json` sudah menutupnya.
+- Setelah deploy, tes: buka `https://DOMAIN-VERCEL/data/students_import.csv` dan `https://DOMAIN-VERCEL/supabase/seed_students.sql`. Keduanya harus mengarah ke beranda, bukan mengunduh berkas.
+- Sangat disarankan menghapus kedua berkas itu dari repository GitHub (data siswa sebaiknya hanya ada di Supabase).
+- Nama paket di `package.json` kini `pkbm-nurul-islam-ujian`, dan `netlify-cli` dihapus dari `devDependencies` agar instalasi di Vercel lebih ringan dan tidak mudah gagal. `package-lock.json` dibuat ulang agar sinkron.

@@ -1,11 +1,10 @@
 {
-  "name": "pkbm-nurul-islam-absensi",
+  "name": "pkbm-nurul-islam-ujian",
   "version": "1.0.0",
   "private": true,
-  "description": "Aplikasi Absensi Siswa PKBM Nurul Islam (Netlify Functions + Supabase)",
+  "description": "Aplikasi Ujian Online & Absensi PKBM Nurul Islam (Vercel Functions + Supabase)",
   "scripts": {
-    "seed": "node scripts/generate_seed_sql.js",
-    "dev": "netlify dev"
+    "seed": "node scripts/generate_seed_sql.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
@@ -15,8 +14,5 @@
     "exceljs": "^4.4.0",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1"
-  },
-  "devDependencies": {
-    "netlify-cli": "^17.38.0"
   }
 }
