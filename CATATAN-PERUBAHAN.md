@@ -1,5 +1,12 @@
 # Perubahan terbaru
 
+## v26 — Menu Jadwal Ujian & Kartu Peserta Ujian
+**Jalankan `migrasi-v26-jadwal-ujian-kartu.sql`** di Supabase SQL Editor (sekali; aman diulang). File berubah: `index.html`, `netlify/functions/cadangan-data.js` (tabel baru ikut dicadangkan).
+- **Jadwal Ujian** (menu *Pelaksanaan Ujian*): pilih jenis (UTS/UAS/Ulangan Harian), Paket B atau Paket C, kelas (atau semua kelas), jurusan (Paket C), semester, tahun ajaran. Klik **Generate Jadwal Otomatis**: mapel diambil dari menu Mata Pelajaran (yang bertanda "Tidak diujikan" dilewati), lalu ditempatkan ke tanggal & jam sesi sesuai hari ujian, jam sesi, dan tanggal libur yang diisi.
+- Hasil generate bisa diedit: ubah tanggal/jam/nama mapel/keterangan (mis. ruang), **tukar urutan mapel** (panah), hapus baris, dan **Tambah Mapel** (dari daftar mapel atau ketik mapel lain). Bisa **Simpan**, **Cetak** (kop + tanda tangan Kepala), dan **Excel**. Jadwal tersimpan bisa dibuka lagi.
+- **Kartu Peserta Ujian** (menu baru): pilih jadwal tersimpan. Daftar siswa AKTIF (nama, NISN, kelas, foto) diambil dari data siswa aplikasi absensi; kehadiran dihitung dari absensi pada periode yang dipilih. Ada **syarat kehadiran minimal (%)** (0 = tidak dipakai; siswa di bawah syarat tidak dicentang otomatis, tetap bisa dicentang manual) dan pilihan mencantumkan persentase kehadiran di kartu. Tiap kartu memuat nomor peserta, jadwal lengkap sesuai kelas & jurusan siswa, dan tanda tangan.
+- Kartu lama di menu *Ujian Cetak & Nilai Manual* dan *Laporan Siswa* tidak diubah.
+
 ## v15.14 — Mapel tidak diujikan lebih mudah dilihat dan diatur
 File berubah: `index.html` saja (tanpa migrasi SQL).
 - **Menu Mata Pelajaran**: filter *Semua / Diujikan saja / Tidak diujikan saja*, kotak cari, ringkasan jumlah, baris mapel tidak diujikan tampil redup dengan lencana, dan tombol satu klik **Tidak diujikan / Ujikan kembali** di tiap baris.

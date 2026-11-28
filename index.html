@@ -445,6 +445,8 @@ main{flex:1;min-width:0;max-width:1240px;margin:0 auto;padding:16px 20px 40px}
     <div class="group" data-group="laksana">
       <div class="ghead" onclick="toggleGroup('laksana')"><svg class="i" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Pelaksanaan Ujian</span><span class="chev">&#9656;</span></div>
       <div class="subs">
+        <div class="item" data-tab="jadwal" onclick="showTab('jadwal')">Jadwal Ujian</div>
+        <div class="item" data-tab="kartupeserta" onclick="showTab('kartupeserta')">Kartu Peserta Ujian</div>
         <div class="item" data-tab="monitor" onclick="showTab('monitor')">Monitoring Ujian</div>
         <div class="item admin-only hidden" data-tab="monsiswa" onclick="showTab('monsiswa')">Monitoring per Siswa</div>
         <div class="item" data-tab="manual" onclick="showTab('manual')">Ujian Cetak &amp; Nilai Manual</div>
@@ -917,6 +919,130 @@ main{flex:1;min-width:0;max-width:1240px;margin:0 auto;padding:16px 20px 40px}
     </section>
 
     <!-- ===== TAB: BELUM MENGIKUTI UJIAN ===== -->
+    <!-- ===== TAB: JADWAL UJIAN (v26) ===== -->
+    <section id="tab-jadwal" class="hidden">
+      <h2>Jadwal Ujian</h2>
+      <p class="muted">Buat jadwal UTS / UAS / Ulangan Harian untuk Paket B atau Paket C. Jadwal dibuat otomatis dari mata pelajaran yang ada di menu Mata Pelajaran
+        (mapel yang bertanda "Tidak diujikan" dilewati). Setelah jadi, tanggal, jam, dan nama mapel masih bisa diubah, mapel bisa ditukar urutannya,
+        dihapus, atau ditambah.</p>
+      <div class="card">
+        <h3 style="margin-top:0;">1. Pilih ujian</h3>
+        <div class="grid3">
+          <div class="field"><label>Jenis Ujian</label>
+            <select id="jd-jenis" onchange="jdRender()">
+              <option value="UTS">UTS (Ujian Tengah Semester)</option>
+              <option value="UAS">UAS (Ujian Akhir Semester)</option>
+              <option value="Ulangan Harian">Ulangan Harian</option>
+            </select></div>
+          <div class="field"><label>Program</label>
+            <select id="jd-program" onchange="jdGantiProgram()">
+              <option value="Paket B">Paket B (setara SMP/MTs)</option>
+              <option value="Paket C">Paket C (setara SMA/MA)</option>
+            </select></div>
+          <div class="field"><label>Kelas</label>
+            <select id="jd-kelas" onchange="jdGantiKelas()"></select></div>
+        </div>
+        <div class="grid3" style="margin-top:12px;">
+          <div class="field"><label>Semester</label>
+            <select id="jd-smt"><option value="Ganjil">Ganjil</option><option value="Genap">Genap</option></select></div>
+          <div class="field"><label>Tahun Ajaran</label><select id="jd-ta"></select></div>
+          <div class="field" id="jd-jurusan-wrap"><label>Jurusan (Paket C)</label>
+            <select id="jd-jurusan"><option value="">Semua jurusan</option><option value="IPA">IPA</option><option value="IPS">IPS</option></select></div>
+        </div>
+        <div class="field" style="margin-top:12px;"><label>Judul jadwal (boleh dikosongkan, diisi otomatis)</label>
+          <input type="text" id="jd-judul" placeholder="mis. Jadwal UTS Ganjil 2026/2027 Paket B" /></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">2. Pengaturan generate</h3>
+        <div class="grid3">
+          <div class="field"><label>Tanggal mulai ujian</label><input type="date" id="jd-mulai" /></div>
+          <div class="field"><label>Urutan mapel</label>
+            <select id="jd-acak"><option value="">Sesuai daftar Mata Pelajaran</option><option value="1">Diacak</option></select></div>
+          <div class="field"><label>Hari ujian</label>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;padding-top:6px;">
+              <label style="display:inline-flex;gap:4px;align-items:center;margin:0;"><input type="checkbox" class="jd-hari" value="1" checked style="width:auto;"> Sen</label>
+              <label style="display:inline-flex;gap:4px;align-items:center;margin:0;"><input type="checkbox" class="jd-hari" value="2" checked style="width:auto;"> Sel</label>
+              <label style="display:inline-flex;gap:4px;align-items:center;margin:0;"><input type="checkbox" class="jd-hari" value="3" checked style="width:auto;"> Rab</label>
+              <label style="display:inline-flex;gap:4px;align-items:center;margin:0;"><input type="checkbox" class="jd-hari" value="4" checked style="width:auto;"> Kam</label>
+              <label style="display:inline-flex;gap:4px;align-items:center;margin:0;"><input type="checkbox" class="jd-hari" value="5" checked style="width:auto;"> Jum</label>
+              <label style="display:inline-flex;gap:4px;align-items:center;margin:0;"><input type="checkbox" class="jd-hari" value="6" style="width:auto;"> Sab</label>
+              <label style="display:inline-flex;gap:4px;align-items:center;margin:0;"><input type="checkbox" class="jd-hari" value="0" style="width:auto;"> Min</label>
+            </div></div>
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <div class="field"><label>Jam sesi tiap hari (satu sesi per baris = satu mapel)</label>
+            <textarea id="jd-sesi" rows="3" placeholder="07.30 - 09.30"></textarea></div>
+          <div class="field"><label>Tanggal libur yang dilewati (opsional)</label>
+            <textarea id="jd-libur" rows="3" placeholder="Pisahkan dengan koma atau baris baru, mis. 2026-12-25, 2026-12-31"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+          <button class="btn gold" onclick="jdGenerate()">&#9889; Generate Jadwal Otomatis</button>
+          <button class="btn outline" onclick="jdBaru()">Jadwal Baru / Kosongkan</button>
+        </div>
+        <p class="muted" id="jd-info-kandidat" style="margin:10px 0 0;"></p>
+      </div>
+      <div class="card" style="overflow-x:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+          <h3 style="margin:0;">3. Jadwal <span class="muted" id="jd-jumlah" style="font-weight:normal;font-size:13px;"></span></h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" onclick="jdSimpan()">&#128190; Simpan</button>
+            <button class="btn outline" onclick="jdCetak()">&#128424; Cetak</button>
+            <button class="btn outline" onclick="jdExcel()">&#11015; Excel</button>
+            <button class="btn outline" onclick="jdKeKartu()">&#129706; Kartu Peserta</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>No</th><th>Tanggal</th><th>Hari</th><th>Jam</th><th>Mata Pelajaran</th><th>Kelas</th><th>Keterangan</th><th></th></tr></thead>
+          <tbody id="jd-body"><tr><td colspan="8" class="muted">Belum ada jadwal.</td></tr></tbody>
+        </table>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+          <select id="jd-tambah" style="max-width:320px;"></select>
+          <button class="btn outline" onclick="jdTambahMapel()">+ Tambah Mapel</button>
+        </div>
+      </div>
+      <div class="card" style="overflow-x:auto;">
+        <h3 style="margin-top:0;">Jadwal tersimpan</h3>
+        <table>
+          <thead><tr><th>Judul</th><th>Program / Kelas</th><th>Semester</th><th>Mapel</th><th>Diperbarui</th><th></th></tr></thead>
+          <tbody id="jd-tersimpan"><tr><td colspan="6" class="muted">Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== TAB: KARTU PESERTA UJIAN (v26) ===== -->
+    <section id="tab-kartupeserta" class="hidden">
+      <h2>Kartu Peserta Ujian</h2>
+      <p class="muted">Kartu dibuat dari jadwal ujian yang sudah disimpan. Daftar siswa (nama, NISN, kelas, foto) diambil dari data siswa aplikasi absensi,
+        dan persentase kehadiran dihitung dari absensi siswa pada periode yang dipilih. Kartu tiap siswa hanya memuat mapel sesuai jurusannya.</p>
+      <div class="card">
+        <div class="grid3">
+          <div class="field"><label>Jadwal Ujian</label>
+            <select id="kp-jadwal" onchange="kpPilihJadwal()"></select></div>
+          <div class="field"><label>Absensi dari tanggal</label><input type="date" id="kp-awal" /></div>
+          <div class="field"><label>Absensi sampai tanggal</label><input type="date" id="kp-akhir" /></div>
+        </div>
+        <div class="grid3" style="margin-top:12px;">
+          <div class="field"><label>Syarat kehadiran minimal (%)</label>
+            <input type="number" id="kp-min" min="0" max="100" value="0" onchange="kpTerapkanSyarat()" />
+            <small class="muted">0 = semua siswa boleh dicetak. Siswa di bawah syarat tidak dicentang otomatis.</small></div>
+          <div class="field"><label>&nbsp;</label>
+            <label style="display:inline-flex;gap:6px;align-items:center;margin:0;font-size:13px;"><input type="checkbox" id="kp-tampil-hadir" style="width:auto;"> Cantumkan persentase kehadiran di kartu</label></div>
+          <div class="field"><label>&nbsp;</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn outline" onclick="kpMuat()">&#8635; Muat Ulang Siswa &amp; Absensi</button>
+              <button class="btn gold" onclick="kpCetak()">&#128424; Cetak Kartu Terpilih</button>
+            </div></div>
+        </div>
+        <p class="muted" id="kp-info" style="margin:10px 0 0;"></p>
+      </div>
+      <div class="card" style="overflow-x:auto;">
+        <table>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="kp-semua" checked style="width:auto;" onchange="kpPilihSemua(this.checked)"></th><th>No. Peserta</th><th>Nama</th><th>NISN</th><th>Kelas</th><th>Hadir</th><th>Sakit</th><th>Izin</th><th>Alpa</th><th>% Hadir</th><th>Status</th></tr></thead>
+          <tbody id="kp-body"><tr><td colspan="11" class="muted">Pilih jadwal ujian terlebih dahulu.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
     <section id="tab-belumujian" class="hidden">
       <h2>Belum Mengikuti Ujian</h2>
       <p class="muted">Satu layar untuk melihat siapa saja yang belum mengikuti ujian, dari semua paket sekaligus. Setiap kelas ditampilkan
@@ -2806,7 +2932,7 @@ function showTab(tab){
   if((tab==='user' || tab==='cadangan') && !ADALAH_SUPER) return; // khusus Super Admin (server juga menolak)
   if((tab==='sekolah' || tab==='siswa' || tab==='monsiswa') && !(ADALAH_ADMIN || ADALAH_SUPER)) return; // khusus admin / super admin
   document.querySelectorAll('nav .item').forEach(i=>i.classList.toggle('active', i.dataset.tab===tab));
-  ['dashboard','bank','cptp','rpp','modul','lkpd','pengpa','tugas','nilaitugas','syaratrapor','pelanggaran','suratpanggilan','kenaikan','paket','daftar','paketremedial','terlaksana','pending','manual','monitor','monsiswa','hasil','belumujian','mapel','laporan','rekapnilai','leger','remedial','transkrip','inputnilai','pengnilai','rekap','arsip','ttd','user','cadangan','sekolah','siswa'].forEach(t=>{
+  ['dashboard','jadwal','kartupeserta','bank','cptp','rpp','modul','lkpd','pengpa','tugas','nilaitugas','syaratrapor','pelanggaran','suratpanggilan','kenaikan','paket','daftar','paketremedial','terlaksana','pending','manual','monitor','monsiswa','hasil','belumujian','mapel','laporan','rekapnilai','leger','remedial','transkrip','inputnilai','pengnilai','rekap','arsip','ttd','user','cadangan','sekolah','siswa'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('hidden', t!==tab);
   });
   document.querySelectorAll('nav .group').forEach(g=>{
@@ -2833,6 +2959,8 @@ function showTab(tab){
   if(tab==='manual') loadManualPaketOptions();
   if(tab==='hasil') loadHasilPaketOptions();
   if(tab==='belumujian') loadBelumUjian();
+  if(tab==='jadwal') jdBuka();
+  if(tab==='kartupeserta') kpBuka();
   if(tab==='laporan') loadDaftarSiswaLaporan();
   if(tab==='rekapnilai') loadRekapNilai();
   if(tab==='leger') loadLeger();
@@ -10749,6 +10877,434 @@ async function cetakDaftarKenaikan(){
     ${rows.map(({b,k},i)=>`<tr><td>${i+1}</td><td>${esc2(b.nama)}</td><td>${esc2(b.nisn)}</td><td>${b.m.rata!=null?fmtN(b.m.rata):'-'}</td><td>${b.m.n?b.m.belum:'-'}</td><td>${b.m.hadir!=null?fmtN(b.m.hadir)+'%':'-'}</td><td>${esc2(b.m.sikap||'-')}</td><td><b>${esc2(k ? (k==='tinggal' && akhir ? 'Tidak lulus' : NAMA_KEP[k]) + (k==='naik' ? ' ke kelas '+(KELAS_BERIKUT[kelas]||'') : '') : '-')}</b></td></tr>`).join('')}
     </tbody></table>
     <div class="ttd"><div class="kolom">${tglTtd()}<br>${blokTtd('Wali Kelas', ttdWali, true)}</div><div class="kolom">&nbsp;<br>${blokTtd(esc2(SEKOLAH.jabatan_kepala||'Kepala'), ttdKepala, true)}</div></div></body></html>`);
+  win.document.close();
+}
+
+// ============================================================
+// JADWAL UJIAN & KARTU PESERTA UJIAN (v26)
+// Jadwal dibuat otomatis dari tabel mata_pelajaran, disimpan di tabel jadwal_ujian
+// (migrasi-v26-jadwal-ujian-kartu.sql). Kartu peserta memakai daftar siswa AKTIF dari
+// tabel `students` (aplikasi absensi) dan rekap kehadiran dari fungsi tarik_absensi_nilai().
+// ============================================================
+const JD_HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const JD_KELAS = { 'Paket B':['VII','VIII','IX'], 'Paket C':['X','XI','XII'] };
+const JD_URUT_KELAS = ['VII','VIII','IX','X','XI','XII'];
+const JD_SESI_BAWAAN = '07.30 - 09.30\n10.00 - 12.00';
+const JD_NAMA = { 'UTS':'Ujian Tengah Semester (UTS)', 'UAS':'Ujian Akhir Semester (UAS)', 'Ulangan Harian':'Ulangan Harian' };
+const JD_KODE = { 'UTS':'UTS', 'UAS':'UAS', 'Ulangan Harian':'UH' };
+let jd = { id:null, baris:[] };
+let jdTersimpan = [], jdTabelAda = true, jdSudahInit = false;
+const jdEl = id => document.getElementById(id);
+const jdEsc = v => escapeHtml(String(v==null ? '' : v));
+const jdIso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const jdParse = s => { const [y,m,d] = String(s).split('-').map(Number); return new Date(y, (m||1)-1, d||1); };
+const jdNamaHari = iso => iso ? JD_HARI[jdParse(iso).getDay()] : '';
+const jdTglPanjang = iso => iso ? jdParse(iso).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }) : '';
+
+async function jdBuka(){
+  if(!jdSudahInit){
+    const y = tahunAjaranSekarang();
+    jdEl('jd-ta').innerHTML = [y-1, y, y+1].map(v=>`<option value="${v}/${v+1}">${v}/${v+1}</option>`).join('');
+    jdEl('jd-ta').value = `${y}/${y+1}`;
+    jdEl('jd-smt').value = semesterBerjalan();
+    jdEl('jd-mulai').value = jdIso(new Date());
+    jdEl('jd-sesi').value = JD_SESI_BAWAAN;
+    jdGantiProgram();
+    jdSudahInit = true;
+  }
+  if(!currentMapelList.length) await loadMapelList();
+  await jdMuatTersimpan();
+  jdRender();
+}
+function jdGantiProgram(){
+  const prog = jdEl('jd-program').value;
+  jdEl('jd-kelas').innerHTML = `<option value="SEMUA">Semua kelas ${prog}</option>` + JD_KELAS[prog].map(k=>`<option value="${k}">Kelas ${k}</option>`).join('');
+  jdGantiKelas();
+}
+function jdGantiKelas(){
+  const prog = jdEl('jd-program').value, kelas = jdEl('jd-kelas').value;
+  const adaJur = prog==='Paket C' && ['SEMUA','XI','XII'].includes(kelas);
+  jdEl('jd-jurusan-wrap').style.display = adaJur ? '' : 'none';
+  if(!adaJur) jdEl('jd-jurusan').value = '';
+  jdRender();
+}
+function jdBacaForm(){
+  const hari = [...document.querySelectorAll('.jd-hari:checked')].map(x=>parseInt(x.value,10));
+  let sesi = jdEl('jd-sesi').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!sesi.length) sesi = JD_SESI_BAWAAN.split('\n');
+  const libur = new Set();
+  (jdEl('jd-libur').value.match(/\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}/g) || []).forEach(t=>{
+    if(t.includes('/')){ const [d,m,y] = t.split('/').map(Number); libur.add(`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`); }
+    else libur.add(t);
+  });
+  return { jenis:jdEl('jd-jenis').value, program:jdEl('jd-program').value, kelas:jdEl('jd-kelas').value, jurusan:jdEl('jd-jurusan').value,
+    smt:jdEl('jd-smt').value, ta:jdEl('jd-ta').value, mulai:jdEl('jd-mulai').value, acak:!!jdEl('jd-acak').value, hari, sesi, libur };
+}
+function jdJudul(){
+  const f = jdBacaForm();
+  const manual = jdEl('jd-judul').value.trim();
+  if(manual) return manual;
+  const kls = f.kelas==='SEMUA' ? f.program : `${f.program} Kelas ${f.kelas}`;
+  return `Jadwal ${f.jenis} ${f.smt} ${f.ta} ${kls}${f.jurusan ? ' '+f.jurusan : ''}`;
+}
+// Mapel yang cocok dengan pilihan program/kelas/jurusan, tanpa duplikat nama.
+function jdMapelKandidat(){
+  const f = jdBacaForm(), set = JD_KELAS[f.program];
+  const peta = new Map(), hasil = [];
+  currentMapelList.forEach(m=>{
+    if(m.program!==f.program || m.tidak_diujikan) return;
+    if(f.kelas==='SEMUA'){ if(m.kelas && !set.includes(m.kelas)) return; }
+    else if(m.kelas!==f.kelas) return;
+    if(f.jurusan && m.jurusan && m.jurusan!==f.jurusan) return;
+    const nama = String(m.nama||'').trim(); if(!nama) return;
+    const kunci = nama.toLowerCase()+'|'+(m.jurusan||'');
+    if(peta.has(kunci)){ const e = peta.get(kunci); if(m.kelas && !e.kelasList.includes(m.kelas)) e.kelasList.push(m.kelas); return; }
+    const e = { mapel_id:m.id, nama, jurusan:m.jurusan||null, kelasList:m.kelas ? [m.kelas] : [] };
+    peta.set(kunci, e); hasil.push(e);
+  });
+  hasil.forEach(e=>e.kelasList.sort((a,b)=>JD_URUT_KELAS.indexOf(a)-JD_URUT_KELAS.indexOf(b)));
+  return hasil;
+}
+function jdLabelKelas(e, f){ return f.kelas==='SEMUA' ? e.kelasList.join(', ') : f.kelas; }
+function jdGenerate(){
+  const f = jdBacaForm();
+  if(!f.mulai) return alert('Isi tanggal mulai ujian.');
+  if(!f.hari.length) return alert('Pilih minimal satu hari ujian.');
+  const kand = jdMapelKandidat();
+  if(!kand.length) return alert('Belum ada mata pelajaran yang diujikan untuk pilihan ini.\nTambahkan dulu di menu Pengaturan > Mata Pelajaran (isi Program dan Kelas), atau buat jadwal kosong lalu pakai tombol "Tambah Mapel".');
+  if(jd.baris.length && !confirm('Jadwal yang sedang tampil akan diganti dengan hasil generate. Lanjutkan?')) return;
+  const urut = kand.slice();
+  if(f.acak) for(let i=urut.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [urut[i],urut[j]] = [urut[j],urut[i]]; }
+  const d = jdParse(f.mulai); let idx = 0, jaga = 0; const baris = [];
+  for(const k of urut){
+    while(jaga++ < 2000){
+      if(f.hari.includes(d.getDay()) && !f.libur.has(jdIso(d))) break;
+      d.setDate(d.getDate()+1); idx = 0;
+    }
+    baris.push({ tanggal:jdIso(d), jam:f.sesi[idx], mapel:k.nama, mapel_id:k.mapel_id, kelas:jdLabelKelas(k, f), jurusan:k.jurusan, ket:'' });
+    idx++; if(idx>=f.sesi.length){ idx = 0; d.setDate(d.getDate()+1); }
+  }
+  jd.baris = baris;
+  jdRender();
+}
+function jdBaru(){
+  if(jd.baris.length && !confirm('Kosongkan jadwal yang sedang tampil? (Jadwal yang sudah disimpan tidak terhapus.)')) return;
+  jd = { id:null, baris:[] };
+  jdEl('jd-judul').value = '';
+  jdRender();
+}
+function jdRender(){
+  if(!jdEl('jd-body')) return;
+  const b = jd.baris, f = jdBacaForm();
+  jdEl('jd-jumlah').textContent = b.length ? `(${b.length} mata pelajaran${jd.id ? ', tersimpan' : ', belum disimpan'})` : '';
+  const kand = jdMapelKandidat();
+  jdEl('jd-info-kandidat').textContent = `Mapel yang akan dijadwalkan untuk pilihan ini: ${kand.length} mata pelajaran${kand.length ? ' ('+kand.map(k=>k.nama).join(', ')+')' : ''}.`;
+  jdEl('jd-body').innerHTML = b.length ? b.map((r,i)=>`<tr>
+    <td>${i+1}</td>
+    <td><input type="date" value="${jdEsc(r.tanggal)}" style="padding:6px 8px;" onchange="jdUbah(${i},'tanggal',this.value)"></td>
+    <td>${jdEsc(jdNamaHari(r.tanggal))}</td>
+    <td><input type="text" value="${jdEsc(r.jam)}" style="min-width:110px;" onchange="jdUbah(${i},'jam',this.value)"></td>
+    <td><input type="text" value="${jdEsc(r.mapel)}" style="min-width:170px;" onchange="jdUbah(${i},'mapel',this.value)"></td>
+    <td>${jdEsc(r.kelas||'')}</td>
+    <td><input type="text" value="${jdEsc(r.ket)}" placeholder="mis. Ruang 1" style="min-width:110px;" onchange="jdUbah(${i},'ket',this.value)"></td>
+    <td style="white-space:nowrap;">
+      <button class="btn outline" style="padding:3px 8px;" title="Tukar mapel dengan baris di atas" onclick="jdTukar(${i},-1)">&uarr;</button>
+      <button class="btn outline" style="padding:3px 8px;" title="Tukar mapel dengan baris di bawah" onclick="jdTukar(${i},1)">&darr;</button>
+      <button class="btn danger" style="padding:3px 8px;" title="Hapus baris" onclick="jdHapus(${i})">&times;</button>
+    </td></tr>`).join('') : '<tr><td colspan="8" class="muted">Belum ada jadwal. Klik "Generate Jadwal Otomatis" di atas, atau pakai "Tambah Mapel".</td></tr>';
+  const sudah = new Set(b.map(r=>String(r.mapel||'').trim().toLowerCase()));
+  jdEl('jd-tambah').innerHTML = kand.filter(k=>!sudah.has(k.nama.toLowerCase())).map((k,i)=>`<option value="${jdEsc(k.nama)}|${jdEsc(k.mapel_id)}">${jdEsc(k.nama)}</option>`).join('')
+    + '<option value="__lain__">+ Mapel lain (ketik sendiri)...</option>';
+}
+function jdUbah(i, kolom, nilai){ if(!jd.baris[i]) return; jd.baris[i][kolom] = nilai; if(kolom==='tanggal') jdRender(); }
+function jdTukar(i, arah){
+  const j = i+arah; if(j<0 || j>=jd.baris.length) return;
+  ['mapel','mapel_id','kelas','jurusan','ket'].forEach(k=>{ const t = jd.baris[i][k]; jd.baris[i][k] = jd.baris[j][k]; jd.baris[j][k] = t; });
+  jdRender();
+}
+function jdHapus(i){ if(!confirm(`Hapus "${jd.baris[i].mapel}" dari jadwal?`)) return; jd.baris.splice(i,1); jdRender(); }
+function jdSlotSetelah(){
+  const f = jdBacaForm(), last = jd.baris[jd.baris.length-1];
+  if(!last) return { tanggal:f.mulai || jdIso(new Date()), jam:f.sesi[0] };
+  const i = f.sesi.indexOf(last.jam);
+  if(i>=0 && i+1<f.sesi.length) return { tanggal:last.tanggal, jam:f.sesi[i+1] };
+  const d = jdParse(last.tanggal || f.mulai);
+  for(let g=0; g<400; g++){
+    d.setDate(d.getDate()+1);
+    if(f.hari.includes(d.getDay()) && !f.libur.has(jdIso(d))) return { tanggal:jdIso(d), jam:f.sesi[0] };
+  }
+  return { tanggal:last.tanggal, jam:f.sesi[0] };
+}
+function jdTambahMapel(){
+  const f = jdBacaForm(); let v = jdEl('jd-tambah').value;
+  if(!v) return;
+  let nama, mapelId = null, jur = null, kelas = f.kelas==='SEMUA' ? '' : f.kelas;
+  if(v==='__lain__'){
+    nama = (prompt('Nama mata pelajaran yang ditambahkan:') || '').trim();
+    if(!nama) return;
+  } else {
+    const [n, id] = v.split('|'); nama = n; mapelId = id || null;
+    const k = jdMapelKandidat().find(x=>x.nama===n);
+    if(k){ jur = k.jurusan; kelas = jdLabelKelas(k, f); }
+  }
+  const slot = jdSlotSetelah();
+  jd.baris.push({ tanggal:slot.tanggal, jam:slot.jam, mapel:nama, mapel_id:mapelId, kelas, jurusan:jur, ket:'' });
+  jdRender();
+}
+async function jdMuatTersimpan(){
+  const { data, error } = await supa.from('jadwal_ujian').select('*').order('updated_at', { ascending:false });
+  jdTabelAda = !error;
+  jdTersimpan = data || [];
+  const tb = jdEl('jd-tersimpan'); if(!tb) return;
+  if(error){ tb.innerHTML = `<tr><td colspan="6" class="muted">Tabel jadwal belum ada. Jalankan <b>migrasi-v26-jadwal-ujian-kartu.sql</b> di Supabase SQL Editor, lalu muat ulang halaman. (${jdEsc(error.message)})</td></tr>`; return; }
+  tb.innerHTML = jdTersimpan.map(j=>`<tr>
+    <td>${jdEsc(j.judul)}${jd.id===j.id ? ' <span class="muted">(sedang dibuka)</span>' : ''}</td>
+    <td>${jdEsc(j.program)} / ${j.kelas==='SEMUA' ? 'Semua kelas' : 'Kelas '+jdEsc(j.kelas)}${j.jurusan ? ' '+jdEsc(j.jurusan) : ''}</td>
+    <td>${jdEsc(j.jenis_ujian)} ${jdEsc(j.semester||'')} ${jdEsc(j.tahun_ajaran||'')}</td>
+    <td>${(j.baris||[]).length}</td><td>${fmtTglJam(j.updated_at)}</td>
+    <td style="white-space:nowrap;">
+      <button class="btn outline" style="padding:4px 10px;" onclick="jdBuka2('${j.id}')">Buka</button>
+      <button class="btn outline" style="padding:4px 10px;" onclick="jdKeKartu('${j.id}')">Kartu Peserta</button>
+      <button class="btn danger" style="padding:4px 10px;" onclick="jdHapusTersimpan('${j.id}')">Hapus</button>
+    </td></tr>`).join('') || '<tr><td colspan="6" class="muted">Belum ada jadwal tersimpan.</td></tr>';
+}
+function jdBuka2(id){
+  const j = jdTersimpan.find(x=>x.id===id); if(!j) return;
+  jdEl('jd-jenis').value = j.jenis_ujian; jdEl('jd-program').value = j.program; jdGantiProgram();
+  jdEl('jd-kelas').value = j.kelas; jdGantiKelas();
+  jdEl('jd-jurusan').value = j.jurusan || '';
+  jdEl('jd-smt').value = j.semester || 'Ganjil';
+  if(j.tahun_ajaran){ if(![...jdEl('jd-ta').options].some(o=>o.value===j.tahun_ajaran)) jdEl('jd-ta').add(new Option(j.tahun_ajaran, j.tahun_ajaran)); jdEl('jd-ta').value = j.tahun_ajaran; }
+  jdEl('jd-judul').value = j.judul || '';
+  const p = j.pengaturan || {};
+  if(p.mulai) jdEl('jd-mulai').value = p.mulai;
+  if(Array.isArray(p.sesi) && p.sesi.length) jdEl('jd-sesi').value = p.sesi.join('\n');
+  if(Array.isArray(p.libur)) jdEl('jd-libur').value = p.libur.join(', ');
+  if(Array.isArray(p.hari)) document.querySelectorAll('.jd-hari').forEach(x=>{ x.checked = p.hari.includes(parseInt(x.value,10)); });
+  jdEl('jd-acak').value = p.acak ? '1' : '';
+  jd = { id:j.id, baris:(j.baris||[]).map(r=>({ ...r })) };
+  jdRender(); jdMuatTersimpan();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+async function jdSimpan(){
+  if(!jd.baris.length) return alert('Belum ada jadwal untuk disimpan.');
+  if(jd.baris.some(r=>!r.mapel || !String(r.mapel).trim())) return alert('Ada baris yang nama mapelnya kosong.');
+  const f = jdBacaForm();
+  const payload = { judul:jdJudul(), jenis_ujian:f.jenis, program:f.program, kelas:f.kelas, jurusan:f.jurusan || null, semester:f.smt, tahun_ajaran:f.ta,
+    pengaturan:{ mulai:f.mulai, hari:f.hari, sesi:f.sesi, libur:[...f.libur], acak:f.acak }, baris:jd.baris, updated_at:new Date().toISOString() };
+  const r = jd.id ? await supa.from('jadwal_ujian').update(payload).eq('id', jd.id).select().single()
+                  : await supa.from('jadwal_ujian').insert(payload).select().single();
+  if(r.error) return alert('Gagal menyimpan jadwal: '+r.error.message+'\n\nBila tabel belum ada, jalankan migrasi-v26-jadwal-ujian-kartu.sql di Supabase SQL Editor.');
+  jd.id = r.data.id;
+  await jdMuatTersimpan(); jdRender();
+  alert('Jadwal tersimpan.');
+}
+async function jdHapusTersimpan(id){
+  const j = jdTersimpan.find(x=>x.id===id); if(!j) return;
+  if(!confirm(`Hapus jadwal "${j.judul}"?`)) return;
+  const { error } = await supa.from('jadwal_ujian').delete().eq('id', id);
+  if(error) return alert('Gagal menghapus: '+error.message);
+  if(jd.id===id) jd.id = null;
+  await jdMuatTersimpan(); jdRender();
+}
+async function jdKeKartu(id){
+  if(!id){
+    if(!jd.id) return alert('Simpan jadwal ini dulu, lalu buka Kartu Peserta.');
+    id = jd.id;
+  }
+  kpIdPilih = id;
+  showTab('kartupeserta');
+}
+function jdBarisUrut(baris){
+  return (baris||[]).slice().sort((a,b)=>String(a.tanggal||'').localeCompare(String(b.tanggal||'')) || String(a.jam||'').localeCompare(String(b.jam||''), 'id', { numeric:true }));
+}
+async function jdCetak(){
+  if(!jd.baris.length) return alert('Belum ada jadwal untuk dicetak.');
+  const f = jdBacaForm(), baris = jdBarisUrut(jd.baris);
+  const ttdKepala = await ambilTtd('kepala_pkbm', '');
+  const tampilKelas = f.kelas==='SEMUA' && baris.some(r=>r.kelas);
+  const hitung = {}; baris.forEach(r=>{ hitung[r.tanggal] = (hitung[r.tanggal]||0)+1; });
+  const lihat = new Set();
+  const isi = baris.map(r=>{
+    const awal = !lihat.has(r.tanggal); lihat.add(r.tanggal);
+    return `<tr>${awal ? `<td rowspan="${hitung[r.tanggal]}" class="c"><b>${jdEsc(jdNamaHari(r.tanggal))}</b><br>${jdEsc(jdTglPanjang(r.tanggal))}</td>` : ''}
+      <td class="c">${jdEsc(r.jam)}</td><td>${jdEsc(r.mapel)}</td>${tampilKelas ? `<td class="c">${jdEsc(r.kelas||'')}</td>` : ''}<td>${jdEsc(r.ket||'')}</td></tr>`;
+  }).join('');
+  const kls = f.kelas==='SEMUA' ? 'Semua Kelas' : 'Kelas '+f.kelas;
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>${jdEsc(jdJudul())}</title><style>
+    body{font-family:Arial,sans-serif;max-width:780px;margin:24px auto;color:#111;}
+    .kop{display:flex;align-items:center;gap:14px;box-sizing:border-box;width:100%;border-bottom:4px double #000;padding-bottom:6px;text-align:center;line-height:1.25;}
+    .kop img{width:96px;height:auto;flex:none;} .kop .t{flex:1;}
+    .kop .l1{font-size:17px;font-weight:bold;} .kop .l2{font-size:19px;font-weight:bold;} .kop .l3{font-size:32px;font-weight:bold;letter-spacing:1px;}
+    .kop .l4{font-size:15px;font-weight:bold;} .kop .l5{font-size:12px;} .kop .l6{font-size:8.5px;} .kop .l7{font-size:11px;}
+    h1{font-size:17px;text-align:center;margin:18px 0 2px;text-transform:uppercase;}
+    .sub{text-align:center;font-size:13px;margin-bottom:14px;color:#333;}
+    table.jd{width:100%;border-collapse:collapse;font-size:13px;}
+    table.jd th,table.jd td{border:1px solid #333;padding:6px 8px;vertical-align:middle;}
+    table.jd th{background:#eee;} .c{text-align:center;}
+    .ttd{display:flex;justify-content:flex-end;margin-top:30px;font-size:13px;} .ttd .kolom{width:240px;text-align:center;} .ttd .garis{border-top:1px solid #333;padding-top:4px;font-weight:bold;margin-top:55px;}
+    @media print{button{display:none;}}
+  </style></head><body>
+  <button onclick="window.print()" style="position:fixed;top:10px;right:10px;">Cetak</button>
+  ${kopSekolahHTML()}
+  <h1>${jdEsc(jdJudul())}</h1>
+  <div class="sub">${jdEsc(f.program)} &mdash; ${jdEsc(kls)}${f.jurusan ? ' &mdash; '+jdEsc(f.jurusan) : ''}<br>Semester ${jdEsc(f.smt)} Tahun Ajaran ${jdEsc(f.ta)}</div>
+  <table class="jd"><thead><tr><th>Hari / Tanggal</th><th>Waktu</th><th>Mata Pelajaran</th>${tampilKelas?'<th>Kelas</th>':''}<th>Keterangan</th></tr></thead><tbody>${isi}</tbody></table>
+  <div class="ttd"><div class="kolom">${tglTtd()}<br>${blokTtd(SEKOLAH.jabatan_kepala||'Kepala', ttdKepala)}</div></div>
+  </body></html>`);
+  win.document.close();
+}
+function jdExcel(){
+  if(!jd.baris.length) return alert('Belum ada jadwal.');
+  const f = jdBacaForm(), baris = jdBarisUrut(jd.baris);
+  const aoa = [[jdJudul()], [`${f.program} — ${f.kelas==='SEMUA' ? 'Semua Kelas' : 'Kelas '+f.kelas} — Semester ${f.smt} TA ${f.ta}`], [],
+    ['No','Hari','Tanggal','Waktu','Mata Pelajaran','Kelas','Keterangan'],
+    ...baris.map((r,i)=>[i+1, jdNamaHari(r.tanggal), jdTglPanjang(r.tanggal), r.jam, r.mapel, r.kelas||'', r.ket||''])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{wch:5},{wch:10},{wch:20},{wch:16},{wch:34},{wch:12},{wch:22}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Jadwal Ujian');
+  XLSX.writeFile(wb, `jadwal-ujian-${f.program.replace(' ','')}-${f.kelas}.xlsx`);
+}
+
+// ---------- KARTU PESERTA UJIAN (data siswa & kehadiran dari absensi) ----------
+let kp = { jadwal:null, siswa:[] }, kpIdPilih = null, kpToken = 0;
+async function kpBuka(){
+  await jdMuatTersimpan();
+  const sel = jdEl('kp-jadwal'), prev = kpIdPilih || sel.value;
+  sel.innerHTML = '<option value="">Pilih jadwal ujian...</option>' + jdTersimpan.map(j=>`<option value="${j.id}">${jdEsc(j.judul)}</option>`).join('');
+  sel.value = jdTersimpan.some(j=>j.id===prev) ? prev : '';
+  kpIdPilih = null;
+  if(!jdTersimpan.length) jdEl('kp-body').innerHTML = '<tr><td colspan="11" class="muted">Belum ada jadwal tersimpan. Buat dan simpan jadwal di menu Jadwal Ujian terlebih dahulu.</td></tr>';
+  kpPilihJadwal();
+}
+function kpPilihJadwal(){
+  const j = jdTersimpan.find(x=>x.id===jdEl('kp-jadwal').value) || null;
+  kp.jadwal = j; kp.siswa = [];
+  if(!j){ if(jdTersimpan.length) jdEl('kp-body').innerHTML = '<tr><td colspan="11" class="muted">Pilih jadwal ujian terlebih dahulu.</td></tr>'; jdEl('kp-info').textContent = ''; return; }
+  const rg = rentangDefaultAbsensi(j.tahun_ajaran, j.semester);
+  const hariIni = jdIso(new Date());
+  jdEl('kp-awal').value = rg.awal;
+  jdEl('kp-akhir').value = rg.akhir < hariIni ? rg.akhir : hariIni;
+  kpMuat();
+}
+function kpJurusan(kelas){ const m = String(kelas||'').match(/\b(IPA|IPS)\b/i); return m ? m[1].toUpperCase() : null; }
+async function kpMuat(){
+  const j = kp.jadwal; if(!j) return;
+  const token = ++kpToken;
+  const tb = jdEl('kp-body'), info = jdEl('kp-info');
+  tb.innerHTML = '<tr><td colspan="11" class="muted">Memuat siswa dari absensi...</td></tr>'; info.textContent = '';
+  const progEnum = j.program==='Paket C' ? 'PAKET_C' : 'PAKET_B';
+  let res = await ambilSemuaBaris(()=>supa.from('students').select('id, nisn, nipd, nama, kelas, program, foto_url, status').eq('status','AKTIF').eq('program', progEnum).order('nama'));
+  if(res.error) res = await ambilSemuaBaris(()=>supa.from('students').select('id, nisn, nama, kelas, program, status').eq('status','AKTIF').eq('program', progEnum).order('nama'));
+  if(token!==kpToken) return;
+  if(res.error){ tb.innerHTML = `<tr><td colspan="11" class="muted">Gagal memuat siswa: ${jdEsc(res.error.message)}</td></tr>`; return; }
+  let daftar = (res.data||[]).filter(s=>{
+    const rom = kelasSiswaKeRomawi(s.kelas);
+    if(!rom || !JD_KELAS[j.program].includes(rom)) return false;
+    if(j.kelas!=='SEMUA' && rom!==j.kelas) return false;
+    const jur = kpJurusan(s.kelas);
+    if(j.jurusan && jur && jur!==j.jurusan) return false;
+    return true;
+  });
+  daftar.sort((a,b)=>String(a.kelas).localeCompare(String(b.kelas),'id',{numeric:true}) || String(a.nama).localeCompare(String(b.nama),'id'));
+  // Kehadiran dari absensi
+  const peta = new Map(); let pesanAbs = '';
+  const awal = jdEl('kp-awal').value, akhir = jdEl('kp-akhir').value;
+  if(awal && akhir && awal<=akhir){
+    let a = awal;
+    const mulaiAbs = await tanggalMulaiAbsensi(); if(mulaiAbs && mulaiAbs > a) a = mulaiAbs;
+    if(a<=akhir){
+      const { data:abs, error:eAbs } = await supa.rpc('tarik_absensi_nilai', { p_start:a, p_end:akhir, p_program:j.program, p_kelas:j.kelas==='SEMUA' ? null : j.kelas });
+      if(eAbs) pesanAbs = 'Data kehadiran tidak dapat dibaca ('+eAbs.message+'). Kartu tetap bisa dicetak tanpa kehadiran.';
+      else (abs||[]).forEach(r=>peta.set(r.siswa_nisn, r));
+    } else pesanAbs = 'Belum ada data absensi pada periode ini.';
+  } else pesanAbs = 'Periode absensi tidak valid.';
+  if(token!==kpToken) return;
+  const cacah = {};
+  kp.siswa = daftar.map(s=>{
+    const angka = (String(s.kelas||'').match(/^\d+/)||[''])[0]; cacah[angka] = (cacah[angka]||0)+1;
+    return { ...s, jur:kpJurusan(s.kelas), abs:peta.get(s.nisn)||null, nomor:`${JD_KODE[j.jenis_ujian]||'UJ'}-${angka}-${String(cacah[angka]).padStart(3,'0')}`, pilih:true };
+  });
+  kpTerapkanSyarat(false);
+  kpRender();
+  info.textContent = `${kp.siswa.length} siswa aktif ${j.program}${j.kelas==='SEMUA' ? '' : ' kelas '+j.kelas}.` + (pesanAbs ? ' '+pesanAbs : '');
+}
+function kpTerapkanSyarat(render){
+  const min = Number(jdEl('kp-min').value) || 0;
+  kp.siswa.forEach(s=>{ s.pilih = !(min>0 && s.abs && s.abs.persentase!=null && Number(s.abs.persentase) < min); });
+  if(render!==false) kpRender();
+}
+function kpRender(){
+  const tb = jdEl('kp-body'), min = Number(jdEl('kp-min').value) || 0;
+  if(!kp.siswa.length){ tb.innerHTML = '<tr><td colspan="11" class="muted">Tidak ada siswa aktif yang cocok dengan jadwal ini (cek Program dan Kelas siswa di aplikasi absensi).</td></tr>'; return; }
+  tb.innerHTML = kp.siswa.map((s,i)=>{
+    const a = s.abs, bawah = min>0 && a && a.persentase!=null && Number(a.persentase) < min;
+    return `<tr${bawah?' style="background:#FFF1F0;"':''}>
+      <td><input type="checkbox" ${s.pilih?'checked':''} style="width:auto;" onchange="kpPilih(${i},this.checked)"></td>
+      <td>${jdEsc(s.nomor)}</td><td>${jdEsc(s.nama)}</td><td>${jdEsc(s.nisn||'-')}</td><td>${jdEsc(s.kelas)}</td>
+      <td>${a ? a.hadir+(a.terlambat||0) : '-'}</td><td>${a ? a.sakit : '-'}</td><td>${a ? a.izin : '-'}</td><td>${a ? a.alpa : '-'}</td>
+      <td>${a && a.persentase!=null ? fmtN(a.persentase)+'%' : '-'}</td>
+      <td>${!a ? '<span class="muted">Belum ada data absensi</span>' : bawah ? '<span style="color:var(--red);font-weight:600;">Di bawah syarat</span>' : 'Memenuhi'}</td></tr>`;
+  }).join('');
+  const n = kp.siswa.filter(s=>s.pilih).length;
+  jdEl('kp-semua').checked = n===kp.siswa.length;
+}
+function kpPilih(i, v){ if(kp.siswa[i]) kp.siswa[i].pilih = v; jdEl('kp-semua').checked = kp.siswa.every(s=>s.pilih); }
+function kpPilihSemua(v){ kp.siswa.forEach(s=>{ s.pilih = v; }); kpRender(); if(!v) jdEl('kp-semua').checked = false; }
+async function kpCetak(){
+  const j = kp.jadwal; if(!j) return alert('Pilih jadwal ujian terlebih dahulu.');
+  const dipilih = kp.siswa.filter(s=>s.pilih);
+  if(!dipilih.length) return alert('Belum ada siswa yang dicentang.');
+  const baris = jdBarisUrut(j.baris);
+  const ttdKepala = await ambilTtd('kepala_pkbm', '');
+  const tampilHadir = jdEl('kp-tampil-hadir').checked;
+  const judulKartu = { 'UTS':'KARTU PESERTA UJIAN TENGAH SEMESTER', 'UAS':'KARTU PESERTA UJIAN AKHIR SEMESTER', 'Ulangan Harian':'KARTU PESERTA ULANGAN HARIAN' }[j.jenis_ujian] || 'KARTU PESERTA UJIAN';
+  const kartu = dipilih.map(s=>{
+    const rom = kelasSiswaKeRomawi(s.kelas);
+    const jadwalSiswa = baris.filter(r=>{
+      if(r.jurusan && s.jur && r.jurusan!==s.jur) return false;
+      const ks = String(r.kelas||'').split(',').map(x=>x.trim()).filter(Boolean);
+      return !ks.length || !rom || ks.includes(rom);
+    });
+    const a = s.abs;
+    const foto = s.foto_url ? `<img src="${jdEsc(s.foto_url)}" alt="" onerror="this.style.display='none'">` : '';
+    return `<div class="kartu">
+      <div class="kop"><img src="${jdEsc(logoSekolah())}" alt=""><div><div class="t1">${jdEsc(judulKartu)}</div><div class="t2">${jdEsc(SEKOLAH.nama_aplikasi||'')}</div><div class="t2">Semester ${jdEsc(j.semester||'')} &bull; Tahun Ajaran ${jdEsc(j.tahun_ajaran||'')}</div></div></div>
+      <div class="isi">
+        <div class="foto">${foto}<span>FOTO<br>3x4</span></div>
+        <table class="info">
+          <tr><td>No. Peserta</td><td>: <b>${jdEsc(s.nomor)}</b></td></tr>
+          <tr><td>Nama</td><td>: <b>${jdEsc(s.nama)}</b></td></tr>
+          <tr><td>NISN</td><td>: ${jdEsc(s.nisn||'-')}</td></tr>
+          <tr><td>Kelas</td><td>: ${jdEsc(s.kelas)} (${jdEsc(j.program)})</td></tr>
+          ${tampilHadir ? `<tr><td>Kehadiran</td><td>: ${a && a.persentase!=null ? fmtN(a.persentase)+'%' : 'belum ada data'}</td></tr>` : ''}
+        </table>
+      </div>
+      <table class="jad"><thead><tr><th>Hari / Tanggal</th><th>Jam</th><th>Mata Pelajaran</th></tr></thead><tbody>
+        ${jadwalSiswa.map(r=>`<tr><td>${jdEsc(jdNamaHari(r.tanggal))}, ${jdEsc(jdTglPanjang(r.tanggal))}</td><td>${jdEsc(r.jam)}</td><td>${jdEsc(r.mapel)}${r.ket ? ' ('+jdEsc(r.ket)+')' : ''}</td></tr>`).join('') || '<tr><td colspan="3">Belum ada jadwal.</td></tr>'}
+      </tbody></table>
+      <div class="ttd"><div>Peserta,<div class="sp"></div>${jdEsc(s.nama)}</div><div>${tglTtd()}<br>${blokTtd(SEKOLAH.jabatan_kepala||'Kepala', ttdKepala)}</div></div>
+    </div>`;
+  }).join('');
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>Kartu Peserta - ${jdEsc(j.judul)}</title><style>
+    @page{size:A4;margin:10mm;}
+    body{font-family:Arial,sans-serif;margin:0;color:#111;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .kartu{border:1.5px solid #333;border-radius:6px;padding:8px 10px;page-break-inside:avoid;break-inside:avoid;font-size:10.5px;}
+    .kop{display:flex;align-items:center;gap:8px;border-bottom:2px double #000;padding-bottom:5px;margin-bottom:6px;}
+    .kop img{width:34px;height:34px;object-fit:contain;} .t1{font-weight:bold;font-size:11.5px;} .t2{font-size:9.5px;color:#444;}
+    .isi{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;}
+    .foto{width:56px;height:72px;border:1px solid #777;flex:none;display:flex;align-items:center;justify-content:center;text-align:center;font-size:8px;color:#888;position:relative;overflow:hidden;}
+    .foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+    table.info{flex:1;font-size:10.5px;} table.info td{padding:1px 0;vertical-align:top;} table.info td:first-child{width:62px;white-space:nowrap;}
+    table.jad{width:100%;border-collapse:collapse;font-size:9.5px;} table.jad th,table.jad td{border:1px solid #555;padding:2px 4px;} table.jad th{background:#eee;}
+    .ttd{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;margin-top:6px;text-align:center;} .ttd>div{flex:1;} .ttd .sp{height:34px;}
+    .ttd .garis{border-top:1px solid #333;padding-top:2px;font-weight:bold;}
+    @media print{button{display:none;}}
+  </style></head><body>
+  <button onclick="window.print()" style="position:fixed;top:10px;right:10px;">Cetak</button>
+  <div class="grid">${kartu}</div></body></html>`);
   win.document.close();
 }
 </script>
